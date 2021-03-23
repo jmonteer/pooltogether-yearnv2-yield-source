@@ -9,8 +9,13 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     
-    address public immutable vault;
-    address private immutable token; 
+    address public vault;
+    address private token; 
+
+    event YieldSourceYearnV2Initialized(
+        address vault,
+        address token
+    );
 
     constructor(address _token, address _vault, string memory _name, string memory _symbol) public ERC20(_name, _symbol){
         vault = _vault;
@@ -19,7 +24,26 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
         // check that the vault uses the specified underlying token 
         require(VaultAPI(_vault).token() == _token, "!incorrect vault");
 
+    }
+
+    function initialize(
+        address _vault,
+        address _token
+    ) 
+        public 
+    {
+        require(_vault == address(0), "!already initialized");
+        require(VaultAPI(_vault).token() == _token, "!incorrect vault");
+
+        vault = _vault;
+        token = _token;
+
         IERC20(_token).approve(_vault, type(uint256).max);
+
+        emit YieldSourceYearnV2Initialized(
+            address(_vault),
+            address(_token)
+        );
     }
 
     function depositToken() external view override returns (address) {
