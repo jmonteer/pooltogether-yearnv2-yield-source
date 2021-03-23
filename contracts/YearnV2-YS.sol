@@ -1,69 +1,114 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.7.6;
+pragma solidity 0.6.12;
 
-import "../interfaces/YieldSourceInterface.sol";
 import "../interfaces/VaultAPI.sol";
+import "../interfaces/IYieldSource.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract YieldSourceYearnV2 is YieldSourceInterface {
+contract YieldSourceYearnV2 is IYieldSource, ERC20 {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     
     address public immutable vault;
-    address private immutable token_; 
+    address private immutable token; 
 
-    uint private immutable MIN_DEPOSIT;
-    uint private immutable MIN_IDLE_FUNDS;
-
-    constructor(address _token, address _vault, uint _minDeposit, uint _minIdleFunds) {
+    constructor(address _token, address _vault, string memory _name, string memory _symbol) public ERC20(_name, _symbol){
         vault = _vault;
-        token_ = _token;
+        token = _token;
 
-        MIN_DEPOSIT = _minDeposit; // set up taking into account token decimals
-        MIN_IDLE_FUNDS = _minIdleFunds; 
+        // check that the vault uses the specified underlying token 
+        require(VaultAPI(_vault).token() == _token, "!incorrect vault");
+
         IERC20(_token).approve(_vault, type(uint256).max);
     }
 
-    function token() external view override returns (address) {
-        return token_;
+    function depositToken() external view override returns (address) {
+        return token;
     }
 
-    function balanceOf(address addr) external override  returns (uint256) {
-        return IERC20(token_).balanceOf(addr);
+    function balanceOfToken(address addr) external override  returns (uint256) {
+        return _sharesToToken(balanceOf(addr));
     }
 
-    function supplyTo(uint256 amount, address to) override external {
+    function supplyTokenTo(uint256 amount, address to) override external {
+        uint256 shares = _tokenToShares(amount);
+        _depositInVault(amount);
+        _mint(to, shares);
+    }
+
+    function redeemToken(uint256 amount) external override returns (uint256) {
+        uint256 shares = _tokenToShares(amount);
+        
+        _burn(msg.sender, shares);
+        uint256 ySharesToWithdraw = _sharesToYShares(shares);
+        require(ySharesToWithdraw <= VaultAPI(vault).maxAvailableShares(), "!not enough shares available for withdrawal");
+        
+        uint256 withdrawnAmount = VaultAPI(vault).withdraw(ySharesToWithdraw);
+        IERC20(token).safeTransfer(msg.sender, withdrawnAmount);
+        return withdrawnAmount;
+    }
+
+    event Sponsored(
+        address indexed user,
+        uint256 amount
+    );
+
+    function sponsor(uint256 amount) external {
+        _depositInVault(amount);
+        emit Sponsored(msg.sender, amount);
+    }
+
+    function _balanceOfYShares() internal view returns (uint256) {
+        return VaultAPI(vault).balanceOf(address(this));
+    }
+
+    function _pricePerYShare() internal view returns (uint256) {
+        return VaultAPI(vault).pricePerShare();
+    }
+
+    function _tokenToYShares(uint256 tokens) internal view returns (uint256) {
+        return tokens.mul(1e18).div(_pricePerYShare());
+    }
+
+    function _ySharesToToken(uint256 yShares) internal view returns (uint256) {
+        return yShares.mul(_pricePerYShare()).div(1e18);
+    }
+
+    function _sharesToYShares(uint shares) internal view returns (uint256 yShares) {
+        if(totalSupply() == 0) {
+            yShares = shares;
+        } else {
+            uint256 totalYShares = _balanceOfYShares();
+            yShares = shares.mul(totalYShares).div(totalSupply());
+        }
+    }
+
+    function _tokenToShares(uint256 tokens) internal view returns (uint256 shares) {
+        if(totalSupply() == 0) {
+            shares = _tokenToYShares(tokens);
+        } else {
+            uint256 _tokensInVault = _ySharesToToken(_balanceOfYShares());
+            shares = tokens.mul(totalSupply()).div(_tokensInVault);
+        }
+    }
+
+    function _sharesToToken(uint256 shares) internal view returns (uint256 tokens) {
+        if(totalSupply() == 0) {
+            tokens = _ySharesToToken(shares);
+        } else {
+            uint256 _tokensInVault = _ySharesToToken(_balanceOfYShares());
+            tokens = shares.mul(_tokensInVault).div(totalSupply());
+        }
+    }
+
+    function _depositInVault(uint amount) internal returns (uint256) {
         // bring tokens to the Custom Yield Source 
-        IERC20(token_).safeTransferFrom(to, address(this), amount);
-
-        uint currentBalance = IERC20(token_).balanceOf(address(this));
-        uint availableBalance = currentBalance > MIN_IDLE_FUNDS ? currentBalance.sub(MIN_IDLE_FUNDS) : 0;
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
         // check available room for deposits in Vault (some have a deposit limit)
-        uint availableToDeposit = VaultAPI(vault).availableDepositLimit();
-        // we deposit as much as possible 
-        uint amountToDeposit = availableToDeposit > availableBalance ? availableBalance : availableToDeposit;
-
-        // if it does make sense to deposit such amount, it does
-        // if it does not, it waits until enough balance has been accumulated
-        if(amountToDeposit >= MIN_DEPOSIT) {
-            VaultAPI(vault).deposit(amountToDeposit);
-        }
-    }
-
-    function redeem(uint256 amount) external override returns (uint256 withdrawnAmount) {
-        // try to withdraw from idle funds
-        // else, will withdraw funds from vault
-        if(IERC20(token_).balanceOf(address(this)) >= amount){
-            withdrawnAmount = amount;
-        } else {
-            // mul and div by 1e18 for precision purposes
-            uint sharesToWithdraw = amount.mul(1e18).div(VaultAPI(vault).pricePerShare()).div(1e18);
-            
-            require(sharesToWithdraw <= VaultAPI(vault).maxAvailableShares(), "not enough shares available for withdrawal");
-
-            // TODO: does it make sense to accept greater losses? Default is 0.01%
-            withdrawnAmount = VaultAPI(vault).withdraw(sharesToWithdraw);
-        }
-        IERC20(token_).safeTransfer(msg.sender, withdrawnAmount);
+        uint availableToDeposit = VaultAPI(vault).availableDepositLimit(); // returns amount in underlying token        
+        require(availableToDeposit >= amount, "!deposit amount too high");
+        
+        return VaultAPI(vault).deposit(amount);
     }
 }
