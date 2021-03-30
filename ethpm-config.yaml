@@ -1,6 +1,0 @@
-package_name: vault
-version: 0.3.3
-settings:
-  deployment_networks:
-    - mainnet
-  include_dependencies: false

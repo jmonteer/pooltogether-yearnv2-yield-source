@@ -3,28 +3,27 @@ pragma solidity 0.6.12;
 
 import "../interfaces/VaultAPI.sol";
 import "../interfaces/IYieldSource.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 
-contract YieldSourceYearnV2 is IYieldSource, ERC20 {
-    using SafeERC20 for IERC20;
-    using SafeMath for uint;
+contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeMathUpgradeable for uint;
     
     address public vault;
-    address private token; 
+    address internal token; 
+
+    event Sponsored(
+        address indexed user,
+        uint256 amount
+    );
 
     event YieldSourceYearnV2Initialized(
         address vault,
         address token
     );
-
-    constructor(address _token, address _vault, string memory _name, string memory _symbol) public ERC20(_name, _symbol){
-        vault = _vault;
-        token = _token;
-
-        // check that the vault uses the specified underlying token 
-        require(VaultAPI(_vault).token() == _token, "!incorrect vault");
-
-    }
 
     function initialize(
         address _vault,
@@ -32,17 +31,17 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
     ) 
         public 
     {
-        require(_vault == address(0), "!already initialized");
+        require(vault == address(0), "!already initialized");
         require(VaultAPI(_vault).token() == _token, "!incorrect vault");
 
         vault = _vault;
         token = _token;
 
-        IERC20(_token).approve(_vault, type(uint256).max);
+        IERC20Upgradeable(_token).approve(_vault, type(uint256).max);
 
         emit YieldSourceYearnV2Initialized(
-            address(_vault),
-            address(_token)
+            _vault,
+            _token
         );
     }
 
@@ -50,11 +49,14 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
         return token;
     }
 
-    function balanceOfToken(address addr) external override  returns (uint256) {
+    function balanceOfToken(address addr) external override returns (uint256) {
         return _sharesToToken(balanceOf(addr));
     }
 
     function supplyTokenTo(uint256 amount, address to) override external {
+        // bring tokens to the Custom Yield Source 
+        IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+        
         uint256 shares = _tokenToShares(amount);
         _depositInVault(amount);
         _mint(to, shares);
@@ -63,23 +65,33 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
     function redeemToken(uint256 amount) external override returns (uint256) {
         uint256 shares = _tokenToShares(amount);
         
+        uint256 withdrawnAmount = _withdrawFromVault(shares);
         _burn(msg.sender, shares);
-        uint256 ySharesToWithdraw = _sharesToYShares(shares);
-        require(ySharesToWithdraw <= VaultAPI(vault).maxAvailableShares(), "!not enough shares available for withdrawal");
-        
-        uint256 withdrawnAmount = VaultAPI(vault).withdraw(ySharesToWithdraw);
-        IERC20(token).safeTransfer(msg.sender, withdrawnAmount);
+        IERC20Upgradeable(token).safeTransfer(msg.sender, withdrawnAmount);
+
         return withdrawnAmount;
     }
-
-    event Sponsored(
-        address indexed user,
-        uint256 amount
-    );
 
     function sponsor(uint256 amount) external {
         _depositInVault(amount);
         emit Sponsored(msg.sender, amount);
+    }
+
+    // ************************ INTERNAL FUNCTIONS ************************
+
+    function _depositInVault(uint amount) internal returns (uint256) {
+        // check available room for deposits in Vault (some have a deposit limit)
+        uint availableToDeposit = VaultAPI(vault).availableDepositLimit(); // returns amount in underlying token        
+        require(availableToDeposit >= amount, "!deposit amount too high");
+        
+        return VaultAPI(vault).deposit(amount);
+    }
+
+    function _withdrawFromVault(uint shares) internal returns (uint256) {
+        uint256 ySharesToWithdraw = _sharesToYShares(shares);
+        require(ySharesToWithdraw <= VaultAPI(vault).maxAvailableShares(), "!not enough shares available for withdrawal");
+
+        return VaultAPI(vault).withdraw(ySharesToWithdraw);
     }
 
     function _balanceOfYShares() internal view returns (uint256) {
@@ -89,6 +101,8 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
     function _pricePerYShare() internal view returns (uint256) {
         return VaultAPI(vault).pricePerShare();
     }
+
+    // ************************  FUNCTIONS ************************
 
     function _tokenToYShares(uint256 tokens) internal view returns (uint256) {
         return tokens.mul(1e18).div(_pricePerYShare());
@@ -123,16 +137,5 @@ contract YieldSourceYearnV2 is IYieldSource, ERC20 {
             uint256 _tokensInVault = _ySharesToToken(_balanceOfYShares());
             tokens = shares.mul(_tokensInVault).div(totalSupply());
         }
-    }
-
-    function _depositInVault(uint amount) internal returns (uint256) {
-        // bring tokens to the Custom Yield Source 
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-
-        // check available room for deposits in Vault (some have a deposit limit)
-        uint availableToDeposit = VaultAPI(vault).availableDepositLimit(); // returns amount in underlying token        
-        require(availableToDeposit >= amount, "!deposit amount too high");
-        
-        return VaultAPI(vault).deposit(amount);
     }
 }
