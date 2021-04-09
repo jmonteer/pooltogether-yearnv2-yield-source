@@ -233,7 +233,7 @@ describe('yearnV2YieldSource', () => {
       .returns(toWei('0'));
     await underlyingToken.mock.approve.withArgs(vault.address, userAmount).returns(true);
     await vault.mock.availableDepositLimit
-      .returns(toWei('99999999999'));
+      .returns(userAmount);
     await vault.mock.deposit
       .withArgs(userAmount)
       .returns(userAmount);
@@ -287,7 +287,7 @@ describe('yearnV2YieldSource', () => {
         .returns(yieldSourceOwnerBalance);
       await vault.mock.pricePerShare.returns(toWei('1'));
       await vault.mock.maxAvailableShares
-        .returns(toWei('99999999999'));
+        .returns(redeemAmount);
       await vault.mock.withdraw
         .withArgs(redeemAmount)
         .returns(redeemAmount);
@@ -316,7 +316,7 @@ describe('yearnV2YieldSource', () => {
         .returns(yieldSourceOwnerBalance);
       await vault.mock.pricePerShare.returns(toWei('1'));
       await vault.mock.maxAvailableShares
-        .returns(toWei('99999999999'));
+        .returns(redeemAmount);
       await vault.mock.withdraw
         .withArgs(redeemAmount)
         .returns(redeemAmount);
@@ -340,7 +340,7 @@ describe('yearnV2YieldSource', () => {
         .returns(yieldSourceOwnerLowBalance);
       await vault.mock.pricePerShare.returns(toWei('1'));
       await vault.mock.maxAvailableShares
-          .returns(toWei('99999999999'));
+          .returns(redeemAmount);
       await vault.mock.withdraw
         .withArgs(redeemAmount)
         .returns(redeemAmount);
@@ -366,7 +366,7 @@ describe('yearnV2YieldSource', () => {
       const wallet2Amount = toWei('100');
       await yearnV2YieldSource.mint(wallet2.address, wallet2Amount);
       await vault.mock.availableDepositLimit
-        .returns(toWei('999999999'));
+        .returns(amount);
       await vault.mock.pricePerShare
         .returns(toWei('1'));
       await vault.mock.balanceOf
