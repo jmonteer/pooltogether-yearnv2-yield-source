@@ -12,12 +12,12 @@ import { ethers, waffle } from 'hardhat';
 import {
   IERC20Upgradeable as ERC20,
   IYieldSource as YieldSource,
-  VaultAPI as Vault,
+  IYVaultV2 as Vault,
   YearnV2YieldSourceHarness,
   YearnV2YieldSourceProxyFactoryHarness
 } from '../types';
 // ABIs
-import VaultAPI from '../abis/VaultAPI.json';
+import IYVaultV2 from '../abis/IYVaultV2.json';
 import IYieldSource from '../abis/IYieldSource.json';
 import SafeERC20WrapperUpgradeable from '../abis/SafeERC20WrapperUpgradeable.json';
 
@@ -47,8 +47,10 @@ describe('yearnV2YieldSource', () => {
       SafeERC20WrapperUpgradeable,
     )) as unknown) as ERC20;
 
-    vault = ((await deployMockContract(contractsOwner, VaultAPI)) as unknown) as Vault;
+    vault = ((await deployMockContract(contractsOwner, IYVaultV2)) as unknown) as Vault;
     await vault.mock.token.returns(underlyingToken.address);
+    await vault.mock.activation.returns(1617880430);
+    await vault.mock.apiVersion.returns("0.3.0");
     await underlyingToken.mock.approve
       .withArgs(vault.address, MAX_INTEGER)
       .returns(true);
@@ -97,10 +99,11 @@ describe('yearnV2YieldSource', () => {
     it('should return user balance', async () => {
       await yearnV2YieldSource.mint(yieldSourceOwner.address, toWei('100'));
       await yearnV2YieldSource.mint(wallet2.address, toWei('100'));
-      await vault.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('1000'));
-      await vault.mock.pricePerShare.returns(toWei('1'));
+      await underlyingToken.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('0'));
+      await vault.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('200'));
+      await vault.mock.pricePerShare.returns(toWei('2'));
       expect(await yearnV2YieldSource.callStatic.balanceOfToken(wallet2.address)).to.equal(
-        toWei('500'),
+        toWei('200'),
       );
     });
   });
@@ -161,33 +164,11 @@ describe('yearnV2YieldSource', () => {
     });
   });
 
-  describe('_sharesToYShares()', () => {
-    it('should return yShares', async () => {
-      await yearnV2YieldSource.mint(yieldSourceOwner.address, toWei('100'))
-      await underlyingToken.mock.balanceOf
-        .withArgs(vault.address)
-        .returns(toWei('1000'));
-      await vault.mock.pricePerShare.returns(toWei('2'));
-      await vault.mock.balanceOf
-        .withArgs(yearnV2YieldSource.address)
-        .returns(toWei('200'));
-      
-      expect(await yearnV2YieldSource.callStatic.sharesToYShares(toWei('500'))).to.equal(
-        toWei('1000'),
-      );
-    });
-
-    it('should return yShares if totalSupply is 0', async () => {
-      await vault.mock.pricePerShare.returns(toWei('2'));
-
-      expect(await yearnV2YieldSource.sharesToYShares(toWei('100'))).to.equal(toWei('100'));
-    });
-  });
-
   describe('_tokenToShares()', () => {
     it('should return shares amount', async () => {
       await yearnV2YieldSource.mint(yieldSourceOwner.address, toWei('100'));
       await yearnV2YieldSource.mint(wallet2.address, toWei('100'));
+      await underlyingToken.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('0'));
       await vault.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('1000'));
       await vault.mock.pricePerShare.returns(toWei('1'));
 
@@ -196,7 +177,7 @@ describe('yearnV2YieldSource', () => {
 
     it('should return tokens if totalSupply is 0', async () => {
       await vault.mock.pricePerShare.returns(toWei('1'));
-
+      
       expect(await yearnV2YieldSource.tokenToShares(toWei('100'))).to.equal(toWei('100'));
     });
   });
@@ -205,6 +186,7 @@ describe('yearnV2YieldSource', () => {
     it('should return tokens amount', async () => {
       await yearnV2YieldSource.mint(yieldSourceOwner.address, toWei('100'));
       await yearnV2YieldSource.mint(wallet2.address, toWei('100'));
+      await underlyingToken.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('0'));
       await vault.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('1000'));
       await vault.mock.pricePerShare.returns(toWei('1'));
 
@@ -222,6 +204,7 @@ describe('yearnV2YieldSource', () => {
     const userAddress = user.address;
 
     await underlyingToken.mock.balanceOf.withArgs(user.address).returns(toWei('200'));
+    await underlyingToken.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('0'));
     await vault.mock.balanceOf.withArgs(yearnV2YieldSource.address).returns(toWei('300'));
     await vault.mock.pricePerShare.returns(toWei('1'));
 
@@ -235,7 +218,6 @@ describe('yearnV2YieldSource', () => {
     await vault.mock.availableDepositLimit
       .returns(userAmount);
     await vault.mock.deposit
-      .withArgs(userAmount)
       .returns(userAmount);
 
     await yearnV2YieldSource.connect(user).supplyTokenTo(userAmount, userAddress);
@@ -262,7 +244,6 @@ describe('yearnV2YieldSource', () => {
     it('should revert on error', async () => {
       await underlyingToken.mock.approve.withArgs(vault.address, amount).returns(true);
       await vault.mock.deposit
-        .withArgs(amount)
         .reverts();
 
       await expect(
@@ -282,6 +263,10 @@ describe('yearnV2YieldSource', () => {
 
     it('should redeem assets', async () => {
       await yearnV2YieldSource.mint(yieldSourceOwner.address, yieldSourceOwnerBalance);
+      await underlyingToken.mock.balanceOf
+      .withArgs(yearnV2YieldSource.address)
+      .returns(toWei('0'));
+      
       await vault.mock.balanceOf
         .withArgs(yearnV2YieldSource.address)
         .returns(yieldSourceOwnerBalance);
@@ -289,7 +274,7 @@ describe('yearnV2YieldSource', () => {
       await vault.mock.maxAvailableShares
         .returns(redeemAmount);
       await vault.mock.withdraw
-        .withArgs(redeemAmount)
+        .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
         .returns(redeemAmount);
 
       await underlyingToken.mock.transfer
@@ -318,7 +303,7 @@ describe('yearnV2YieldSource', () => {
       await vault.mock.maxAvailableShares
         .returns(redeemAmount);
       await vault.mock.withdraw
-        .withArgs(redeemAmount)
+        .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
         .returns(redeemAmount);
 
       await underlyingToken.mock.transfer
@@ -338,12 +323,15 @@ describe('yearnV2YieldSource', () => {
       await vault.mock.balanceOf
         .withArgs(yearnV2YieldSource.address)
         .returns(yieldSourceOwnerLowBalance);
+      await underlyingToken.mock.balanceOf
+        .withArgs(yearnV2YieldSource.address)
+        .returns(toWei('0'));
       await vault.mock.pricePerShare.returns(toWei('1'));
       await vault.mock.maxAvailableShares
           .returns(redeemAmount);
       await vault.mock.withdraw
-        .withArgs(redeemAmount)
-        .returns(redeemAmount);
+          .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
+          .returns(redeemAmount);
 
       await underlyingToken.mock.transfer
         .withArgs(yieldSourceOwner.address, yieldSourceOwnerLowBalance)
@@ -371,7 +359,10 @@ describe('yearnV2YieldSource', () => {
         .returns(toWei('1'));
       await vault.mock.balanceOf
         .withArgs(yearnV2YieldSource.address)
-        .returns(toWei('500'))
+        .returns(toWei('500'));
+      await underlyingToken.mock.balanceOf
+        .withArgs(yearnV2YieldSource.address)
+        .returns(toWei('0'));
       await underlyingToken.mock.transferFrom
         .withArgs(yieldSourceOwner.address, yearnV2YieldSource.address, amount)
         .returns(true);
@@ -380,7 +371,6 @@ describe('yearnV2YieldSource', () => {
         .returns(toWei('0'));
       await underlyingToken.mock.approve.withArgs(vault.address, amount).returns(true);
       await vault.mock.deposit
-        .withArgs(amount)
         .returns(amount);
 
       await yearnV2YieldSource.connect(yieldSourceOwner).sponsor(amount);
@@ -401,7 +391,6 @@ describe('yearnV2YieldSource', () => {
         .returns(toWei('0'));
       await underlyingToken.mock.approve.withArgs(vault.address, amount).returns(true);
       await vault.mock.deposit
-        .withArgs(amount)
         .reverts();
 
       await expect(yearnV2YieldSource.connect(yieldSourceOwner).sponsor(amount)).to.be.revertedWith(

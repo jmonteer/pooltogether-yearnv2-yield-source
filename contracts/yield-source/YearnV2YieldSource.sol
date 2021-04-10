@@ -35,7 +35,11 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     {
         require(vault == address(0), "!already initialized");
         require(IYVaultV2(_vault).token() == _token, "!incorrect vault");
-        require(IYVaultV2(_vault).activation != 0, "!vault not initialized");
+        require(IYVaultV2(_vault).activation() != uint256(0), "!vault not initialized");
+        // Vaults from 0.3.2 to 0.3.4 have dips in shareValue
+        require(!areEqualStrings(IYVaultV2(_vault).apiVersion(), "0.3.2"), "!vault not compatible");
+        require(!areEqualStrings(IYVaultV2(_vault).apiVersion(), "0.3.3"), "!vault not compatible");
+        require(!areEqualStrings(IYVaultV2(_vault).apiVersion(), "0.3.4"), "!vault not compatible");
 
         vault = _vault;
         token = _token;
@@ -60,67 +64,47 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
         uint256 shares = _tokenToShares(_amount);
         
         // NOTE: we have to deposit after calculating shares to mint
-        // NOTE: the required buffer is calculated AFTER depositing tokens
         IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), _amount);
 
-        uint256 amountToBuffer = 0;
-        uint256 amountFromBuffer = 0;
-        uint256 amountToDeposit = _amount;
-        
-        uint256 _balance = _balanceOfToken();
-        uint256 _buffer = _requiredBuffer(); 
-        if(_balance < _buffer || _balance == 0) {
-            amountToBuffer = _buffer.sub(_balance);
-            // NOTE: if balance == 0, _requiredBuffer will be 0. First deposit is 100% for buffer
-            if(_balance == 0) amountToBuffer == _amount;
-            amountToBuffer = Math.min(amountToBuffer, _amount);
-        } else {
-            amountFromBuffer = _balance.sub(_buffer);
-        }
+        _depositInVault();
 
-        _depositInVault(_amount.add(amountFromBuffer).sub(amountToBuffer));
         _mint(to, shares);
     }
 
     function redeemToken(uint256 amount) external override returns (uint256) {
         uint256 shares = _tokenToShares(amount);
 
-        uint256 withdrawnAmount = 0;
-        uint256 yShares = _ySharesToWithdraw(amount);
-        if(yShares > 0){
-            withdrawnAmount = _withdrawFromVault(yShares);
-        }
+        uint256 withdrawnAmount = _withdrawFromVault(amount);
 
         _burn(msg.sender, shares);
-        require(_balanceOfToken() > amount, "!not enough tokens to withdraw. Wait until profits are unlocked");
-        IERC20Upgradeable(token).safeTransfer(msg.sender, amount);
 
-        return amount;
+        IERC20Upgradeable(token).safeTransfer(msg.sender, withdrawnAmount);
+
+        return withdrawnAmount;
     }
 
     function sponsor(uint256 amount) external {
         IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
 
-        _depositInVault(amount);
+        _depositInVault();
 
         emit Sponsored(msg.sender, amount);
     }
 
     // ************************ INTERNAL FUNCTIONS ************************
 
-    function _depositInVault(uint amount) internal returns (uint256) {
-        // check available room for deposits in Vault (some have a deposit limit)
-        uint availableToDeposit = IYVaultV2(vault).availableDepositLimit(); // returns amount in underlying token
-
-        amount = Math.min(availableToDeposit, amount);
-
-        return IYVaultV2(vault).deposit(amount);
+    function _depositInVault() internal returns (uint256) {
+        // this will deposit full balance (for cases like not enough room in Vault)
+        return IYVaultV2(vault).deposit();
     }
 
-    function _withdrawFromVault(uint yShares) internal returns (uint256) {
+    function _withdrawFromVault(uint amount) internal returns (uint256) {
+        uint256 yShares = _tokenToYShares(amount);
+
         require(yShares <= IYVaultV2(vault).maxAvailableShares(), "!not enough shares available for withdrawal");
 
-        return IYVaultV2(vault).withdraw(yShares);
+        // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
+        return IYVaultV2(vault).withdraw(yShares, address(this), 10_000);
     }
 
     function _balanceOfYShares() internal view returns (uint256) {
@@ -132,7 +116,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     }
 
     function _balanceOfToken() internal view returns (uint256) {
-        return IERC20Upgradeable(_token).balanceOf(address(this));
+        return IERC20Upgradeable(token).balanceOf(address(this));
     }
 
     function _totalAssetsInToken() internal view returns (uint256) {
@@ -171,30 +155,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
         }
     }
 
-    function _ySharesToWithdraw(uint256 amount) internal view returns (uint256) {
-        uint256 _vaultLastReport = vault.lastReport();
-        uint256 _vaultLockedProfitDegration = vault.lockedProfitDegration();
-        uint256 _lockedFundsRatio = (block.timestamp.sub(_vaultLastReport)) * _vaultLockedProfitDegration;
-        // Only withdraw from Vault if it has not locked profits
-        bool withdrawFromVault = _lockedFundsRatio >= 1e18; // DEGREDATION_COEFFICIENT (private constant in Vault)
-
-        if(withdrawFromVault) {
-            // calc amount to withdraw
-            uint256 amountFromBuffer = amount.mul(MIN_HOLDINGS).div(MAX_BPS);
-            // amount to withdraw is the amount being redeemed + an extra amount to keep the buffer (if needed)
-            // The buffer after withdrawal has to take into account current withdrawal
-            uint256 newBuffer = _requiredBuffer().sub(amountFromBuffer);
-            uint256 newBalance = _balanceOfToken().sub(amountFromBuffer);
-
-            // NOTE: withdraw only 90% as 10% will be taken from buffer
-            amount = amount.sub(amountFromBuffer);
-
-            // if the buffer is not enough, add the required amount
-            amount = newBuffer > newBalance ? amount.add(newBuffer.sub(newBalance)) : amount;
-
-            return _tokenToYShares(amount);
-        } else {
-            return 0;
-        }
+    function areEqualStrings(string memory a, string memory b) internal pure returns (bool) {
+        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 }

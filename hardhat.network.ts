@@ -22,13 +22,13 @@ if (alchemyUrl && process.env.FORK_ENABLED && mnemonic) {
     chainId: 1,
     forking: {
       url: alchemyUrl,
-      blockNumber: 11877193,
     },
     accounts: {
       mnemonic,
     },
   };
 } else {
+  console.log(alchemyUrl, process.env.FORK_ENABLED, mnemonic)
   networks.hardhat = {
     allowUnlimitedContractSize: true,
   };
