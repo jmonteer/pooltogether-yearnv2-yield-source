@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.6.0 <0.7.0;
+pragma solidity 0.6.12;
 
 import "./YearnV2YieldSource.sol";
 import "../external/openzeppelin/ProxyFactory.sol";
@@ -28,7 +28,6 @@ contract YearnV2YieldSourceProxyFactory is ProxyFactory {
     YearnV2YieldSource yearnV2YieldSource = YearnV2YieldSource(deployMinimal(address(instance), ""));
 
     yearnV2YieldSource.initialize(_vault, _token);
-    // yearnV2YieldSource.transferOwnership(_owner);
 
     return yearnV2YieldSource;
   }

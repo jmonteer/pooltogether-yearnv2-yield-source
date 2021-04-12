@@ -127,14 +127,18 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
         return _totalAssetsInToken().mul(MIN_HOLDINGS).div(MAX_BPS);
     }
 
+    function _vaultDecimals() internal view returns (uint256) {
+        return IYVaultV2(vault).decimals();
+    }
+
     // ************************ CALCS ************************
 
     function _tokenToYShares(uint256 tokens) internal view returns (uint256) {
-        return tokens.mul(1e18).div(_pricePerYShare());
+        return tokens.mul(10 ** _vaultDecimals()).div(_pricePerYShare());
     }
 
     function _ySharesToToken(uint256 yShares) internal view returns (uint256) {
-        return yShares.mul(_pricePerYShare()).div(1e18);
+        return yShares.mul(_pricePerYShare()).div(10 ** _vaultDecimals());
     }
 
     function _tokenToShares(uint256 tokens) internal view returns (uint256 shares) {
