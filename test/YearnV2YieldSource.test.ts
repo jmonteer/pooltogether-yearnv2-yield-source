@@ -121,7 +121,6 @@ describe('yearnV2YieldSource', () => {
     });
   });
 
-
   describe('_pricePerYShare()', () => {
     it('should return Vault pricePerShare', async () => {
       await vault.mock.pricePerShare.returns(toWei('2'));
@@ -220,6 +219,8 @@ describe('yearnV2YieldSource', () => {
       .returns(userAmount);
 
     await yearnV2YieldSource.connect(user).supplyTokenTo(userAmount, userAddress);
+
+    
   };
 
   describe('supplyTokenTo()', () => {

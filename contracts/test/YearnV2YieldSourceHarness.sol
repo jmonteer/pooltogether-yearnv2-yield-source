@@ -11,20 +11,28 @@ contract YearnV2YieldSourceHarness is YearnV2YieldSource {
     return true;
   }
 
-  function tokenToShares(uint256 tokens) external view returns (uint256) {
-    return _tokenToShares(tokens);
-  }
-
-  function sharesToToken(uint256 shares) external view returns (uint256) {
-    return _sharesToToken(shares);
-  }
-
   function balanceOfYShares() external view returns (uint256) {
       return _balanceOfYShares();
   }
 
   function pricePerYShare() external view returns (uint256) {
       return _pricePerYShare();
+  }
+
+  function totalAssetsInToken() external view returns (uint256) {
+    return _totalAssetsInToken();
+  }
+
+  function vaultDecimals() external view returns (uint256) {
+    return _vaultDecimals();
+  }
+
+  function tokenToShares(uint256 tokens) external view returns (uint256) {
+    return _tokenToShares(tokens);
+  }
+
+  function sharesToToken(uint256 shares) external view returns (uint256) {
+    return _sharesToToken(shares);
   }
 
   function tokenToYShares(uint256 tokens) external view returns (uint256) {
