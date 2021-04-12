@@ -22,7 +22,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @dev Deposit Token contract address
     address internal token; 
     /// @dev Max % of losses that the Yield Source will accept from the Vault in BPS
-    uint256 constant MAX_LOSSES = 10_000; // 100%
+    uint256 constant internal MAX_LOSSES = 10_000; // 100%
 
     /// @notice Emitted when asset tokens are supplied to sponsor the yield source
     event Sponsored(

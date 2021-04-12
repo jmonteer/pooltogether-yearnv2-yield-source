@@ -3,7 +3,6 @@ import RNGBlockhash from '@pooltogether/pooltogether-rng-contracts/deployments/m
 import ControlledToken from '@pooltogether/pooltogether-contracts/abis/ControlledToken.json';
 import MultipleWinners from '@pooltogether/pooltogether-contracts/abis/MultipleWinners.json';
 import YieldSourcePrizePool from '@pooltogether/pooltogether-contracts/abis/YieldSourcePrizePool.json';
-import IYVaultV2 from '../../abis/IYVaultV2.json';
 
 import { dai, usdc } from '@studydefi/money-legos/erc20';
 
@@ -15,16 +14,14 @@ import {
 } from '../../Constant';
 
 import { info, success } from '../helpers';
-import { BigNumber } from '@ethersproject/bignumber';
 
 export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool').setAction(
   async (taskArguments, hre) => {
     const { ethers } = hre;
     const { constants, provider, getContractAt, getContractFactory, getSigners, utils } = ethers;
-    const [contractsOwner, yieldSourceOwner] = await getSigners();
+    const [contractsOwner] = await getSigners();
     const { AddressZero } = constants;
     const { getBlock, getBlockNumber, getTransactionReceipt, send } = provider;
-    const { formatEther, parseEther: toWei } = utils;
 
     async function increaseTime(time: number) {
       await send('evm_increaseTime', [time]);
@@ -54,12 +51,6 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
       proxyCreatedEvent.args.proxy,
       contractsOwner,
     ));
-
-    const yearnV2Vault = (await getContractAt(
-      IYVaultV2,
-      USDC_VAULT_ADDRESS_MAINNET,
-      contractsOwner
-    ))
 
     info('Deploying YearnV2YieldSourcePrizePool...');
 

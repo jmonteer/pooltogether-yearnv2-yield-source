@@ -18,12 +18,10 @@ export default task(
   const binance = provider.getUncheckedSigner(BINANCE_ADDRESS);
   const binance7 = provider.getUncheckedSigner(BINANCE7_ADDRESS);
 
-  const daiContract = await getContractAt(dai.abi, dai.address, binance);
   const usdcContract = await getContractAt(usdc.abi, usdc.address, binance7);
 
   const recipients: { [key: string]: string } = {
     ['Deployer']: deployer,
-    ['Dai Rich Signer']: DAI_RICH_ADDRESS,
   };
 
   const keys = Object.keys(recipients);
@@ -32,10 +30,7 @@ export default task(
     const name = keys[i];
     const address = recipients[name];
 
-    info(`Sending 1000 Dai to ${name}...`);
-    await daiContract.transfer(address, ethers.utils.parseEther('1000'));
-
-    info(`Sending 1000 USDC to ${name}...`);
+    info(`Sending 20,000 USDC to ${name}...`);
     await usdcContract.transfer(address, ethers.utils.parseUnits('20000', 6));
 
     info(`Sending 1000 Ether to ${name}...`);

@@ -214,13 +214,11 @@ describe('yearnV2YieldSource', () => {
       .returns(toWei('0'));
     await underlyingToken.mock.approve.withArgs(vault.address, userAmount).returns(true);
     await vault.mock.availableDepositLimit
-      .returns(userAmount);
+      .returns(ethers.utils.parseEther('1'));
     await vault.mock.deposit
       .returns(userAmount);
 
     await yearnV2YieldSource.connect(user).supplyTokenTo(userAmount, userAddress);
-
-    
   };
 
   describe('supplyTokenTo()', () => {
@@ -240,7 +238,7 @@ describe('yearnV2YieldSource', () => {
       await yearnV2YieldSource.mint(wallet2.address, toWei('100'));
       await supplyTokenTo(yieldSourceOwner, amount);
     });
-
+    
     it('should revert on error', async () => {
       await underlyingToken.mock.approve.withArgs(vault.address, amount).returns(true);
       await vault.mock.deposit
