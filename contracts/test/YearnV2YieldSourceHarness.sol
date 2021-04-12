@@ -11,14 +11,6 @@ contract YearnV2YieldSourceHarness is YearnV2YieldSource {
     return true;
   }
 
-  function tokenToShares(uint256 tokens) external view returns (uint256) {
-    return _tokenToShares(tokens);
-  }
-
-  function sharesToToken(uint256 shares) external view returns (uint256) {
-    return _sharesToToken(shares);
-  }
-
   function balanceOfYShares() external view returns (uint256) {
       return _balanceOfYShares();
   }
@@ -27,15 +19,27 @@ contract YearnV2YieldSourceHarness is YearnV2YieldSource {
       return _pricePerYShare();
   }
 
+  function totalAssetsInToken() external view returns (uint256) {
+    return _totalAssetsInToken();
+  }
+
+  function vaultDecimals() external view returns (uint256) {
+    return _vaultDecimals();
+  }
+
+  function tokenToShares(uint256 tokens) external view returns (uint256) {
+    return _tokenToShares(tokens);
+  }
+
+  function sharesToToken(uint256 shares) external view returns (uint256) {
+    return _sharesToToken(shares);
+  }
+
   function tokenToYShares(uint256 tokens) external view returns (uint256) {
       return _tokenToYShares(tokens);
   }
 
   function ySharesToToken(uint256 yShares) external view returns (uint256) {
       return _ySharesToToken(yShares);
-  }
-
-  function sharesToYShares(uint shares) external view returns (uint256) {
-      return _sharesToYShares(shares);
   }
 }

@@ -4,7 +4,7 @@ pragma solidity 0.6.12;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-interface VaultAPI is IERC20 {
+interface IYVaultV2 is IERC20 {
     function name() external view returns (string calldata);
 
     function symbol() external view returns (string calldata);
@@ -12,6 +12,8 @@ interface VaultAPI is IERC20 {
     function decimals() external view returns (uint256);
 
     function apiVersion() external pure returns (string memory);
+
+    function activation() external view returns (uint256);
 
     function permit(
         address owner,
@@ -22,18 +24,20 @@ interface VaultAPI is IERC20 {
     ) external returns (bool);
 
     // NOTE: Vyper produces multiple signatures for a given function with "default" args
-    // function deposit() external returns (uint256);
+    function deposit() external returns (uint256);
 
-    function deposit(uint256 amount) external returns (uint256);
+    // function deposit(uint256 amount) external returns (uint256);
 
     // function deposit(uint256 amount, address recipient) external returns (uint256);
 
     // NOTE: Vyper produces multiple signatures for a given function with "default" args
     // function withdraw() external returns (uint256);
 
-    function withdraw(uint256 maxShares) external returns (uint256);
+    // function withdraw(uint256 maxShares) external returns (uint256);
 
     // function withdraw(uint256 maxShares, address recipient) external returns (uint256);
+
+    function withdraw(uint256 maxShares, address recipient, uint256 maxLoss) external returns (uint256);
 
     function token() external view returns (address);
 

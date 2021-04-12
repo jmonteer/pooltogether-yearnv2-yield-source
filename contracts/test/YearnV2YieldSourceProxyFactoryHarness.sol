@@ -3,8 +3,8 @@
 pragma solidity >=0.6.0 <0.7.0;
 
 import "./YearnV2YieldSourceHarness.sol";
-import "../yield-source/YearnV2YieldSourceProxyFactory.sol";
 import "../external/openzeppelin/ProxyFactory.sol";
+import "../yield-source/YearnV2YieldSourceProxyFactory.sol";
 
 /// @title YearnV2 Yield Source Proxy Factory
 /// @notice Minimal proxy pattern for creating new YearnV2 Yield Sources

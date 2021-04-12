@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.6.0 <0.7.0;
+pragma solidity 0.6.12;
 
 import "./YearnV2YieldSource.sol";
 import "../external/openzeppelin/ProxyFactory.sol";
 
 /// @title YearnV2 Yield Source Proxy Factory
-/// @notice Minimal proxy pattern for creating new aToken Yield Sources
+/// @notice Minimal proxy pattern for creating new YearnV2 Yield Sources
 contract YearnV2YieldSourceProxyFactory is ProxyFactory {
 
-  /// @notice Contract template for deploying proxied aToken Yield Sources
+  /// @notice Contract template for deploying proxied YearnV2 Yield Sources
   YearnV2YieldSource public instance;
 
-  /// @notice Initializes the Factory with an instance of the aToken Yield Source
+  /// @notice Initializes the Factory with an instance of the YearnV2 Yield Source
   constructor () public {
     instance = new YearnV2YieldSource();
   }
@@ -28,7 +28,6 @@ contract YearnV2YieldSourceProxyFactory is ProxyFactory {
     YearnV2YieldSource yearnV2YieldSource = YearnV2YieldSource(deployMinimal(address(instance), ""));
 
     yearnV2YieldSource.initialize(_vault, _token);
-    // yearnV2YieldSource.transferOwnership(_owner);
 
     return yearnV2YieldSource;
   }
