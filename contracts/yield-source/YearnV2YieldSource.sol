@@ -18,9 +18,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     using SafeMathUpgradeable for uint;
     
     /// @notice Yearn Vault which manages `token` to generate yield
-    address public vault;
+    IYVaultV2 public vault;
     /// @dev Deposit Token contract address
-    address internal token; 
+    IERC20Upgradeable internal token; 
     /// @dev Max % of losses that the Yield Source will accept from the Vault in BPS
     uint256 constant internal MAX_LOSSES = 10_000; // 100%
 
@@ -32,8 +32,8 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     
     /// @notice Emitted when the yield source is initialized
     event YieldSourceYearnV2Initialized(
-        address vault,
-        address token
+        IYVaultV2 vault,
+        IERC20Upgradeable token
     );
 
     /// @notice Emitted when asset tokens are supplied to the yield source
@@ -55,23 +55,23 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @param _vault YearnV2 Vault in which the Yield Source will deposit `token` to generate Yield
     /// @param _token Underlying Token / Deposit Token
     function initialize(
-        address _vault,
-        address _token
+        IYVaultV2 _vault,
+        IERC20Upgradeable _token
     ) 
         public 
     {
-        require(vault == address(0), "!already initialized");
-        require(IYVaultV2(_vault).token() == _token, "!incorrect vault");
-        require(IYVaultV2(_vault).activation() != uint256(0), "!vault not initialized");
+        require(address(vault) == address(0), "!already initialized");
+        require(_vault.token() == address(_token), "!incorrect vault");
+        require(_vault.activation() != uint256(0), "!vault not initialized");
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
-        require(!areEqualStrings(IYVaultV2(_vault).apiVersion(), "0.3.2"), "!vault not compatible");
-        require(!areEqualStrings(IYVaultV2(_vault).apiVersion(), "0.3.3"), "!vault not compatible");
-        require(!areEqualStrings(IYVaultV2(_vault).apiVersion(), "0.3.4"), "!vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "!vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "!vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "!vault not compatible");
 
         vault = _vault;
         token = _token;
 
-        IERC20Upgradeable(_token).approve(_vault, type(uint256).max);
+        _token.safeApprove(address(_vault), type(uint256).max);
 
         emit YieldSourceYearnV2Initialized(
             _vault,
@@ -82,7 +82,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @notice Returns the ERC20 asset token used for deposits
     /// @return The ERC20 asset token address
     function depositToken() external view override returns (address) {
-        return token;
+        return address(token);
     }
 
     /// @notice Returns user total balance (in asset tokens). This includes the deposits and interest.
@@ -99,14 +99,14 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @param to The user whose balance will receive the tokens
     function supplyTokenTo(uint256 _amount, address to) override external {
         uint256 shares = _tokenToShares(_amount);
-        
+
+        _mint(to, shares);
+
         // NOTE: we have to deposit after calculating shares to mint
-        IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), _amount);
+        token.safeTransferFrom(msg.sender, address(this), _amount);
 
         _depositInVault();
 
-        _mint(to, shares);
-        
         emit SuppliedTokenTo(msg.sender, shares, _amount, to);
     }
 
@@ -122,7 +122,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
 
         _burn(msg.sender, shares);
 
-        IERC20Upgradeable(token).safeTransfer(msg.sender, withdrawnAmount);
+        token.safeTransfer(msg.sender, withdrawnAmount);
 
         emit RedeemedToken(msg.sender, shares, amount);
         return withdrawnAmount;
@@ -132,7 +132,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @dev This allows anyone to distribute tokens among the share holders
     /// @param amount The amount of tokens to deposit
     function sponsor(uint256 amount) external {
-        IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+        token.safeTransferFrom(msg.sender, address(this), amount);
 
         _depositInVault();
 
@@ -147,7 +147,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @return The actual amount of shares that were received for the deposited tokens
     function _depositInVault() internal returns (uint256) {
         // this will deposit full balance (for cases like not enough room in Vault)
-        return IYVaultV2(vault).deposit();
+        return vault.deposit();
     }
 
     /// @notice Withdraws requested amount from Vault
@@ -157,15 +157,18 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @return Tokens received from the Vault
     function _withdrawFromVault(uint amount) internal returns (uint256) {
         uint256 yShares = _tokenToYShares(amount);
-
+        uint256 previousBalance = token.balanceOf(address(this));
         // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
-        return IYVaultV2(vault).withdraw(yShares, address(this), MAX_LOSSES);
+        vault.withdraw(yShares, address(this), MAX_LOSSES);
+        uint256 currentBalance = token.balanceOf(address(this));
+
+        return previousBalance.sub(currentBalance);
     }
 
     /// @notice Returns the amount of shares of yearn's vault that the Yield Source holds
     /// @return Balance of vault's shares holded by Yield Source
     function _balanceOfYShares() internal view returns (uint256) {
-        return IYVaultV2(vault).balanceOf(address(this));
+        return vault.balanceOf(address(this));
     }
 
     /// @notice Ratio between yShares and underlying token
@@ -173,13 +176,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @dev (see _tokenToYShares & _ySharesToToken)
     /// @return Price per vault's share
     function _pricePerYShare() internal view returns (uint256) {
-        return IYVaultV2(vault).pricePerShare();
+        return vault.pricePerShare();
     }
 
     /// @notice Balance of deposit token held in the Yield Source
     /// @return balance of deposit token
     function _balanceOfToken() internal view returns (uint256) {
-        return IERC20Upgradeable(token).balanceOf(address(this));
+        return token.balanceOf(address(this));
     }
 
     /// @notice Total Assets under Management by Yield Source, denominated in Deposit Token
@@ -193,7 +196,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @dev used to correctly scale prices 
     /// @return decimals of vault's shares (and underlying token)
     function _vaultDecimals() internal view returns (uint256) {
-        return IYVaultV2(vault).decimals();
+        return vault.decimals();
     }
 
     // ************************ CALCS ************************
