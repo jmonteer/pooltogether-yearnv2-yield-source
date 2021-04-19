@@ -13,6 +13,12 @@
 PoolTogether Yield Source that uses [Yearn](https://yearn.finance/) V2 to generate yield by depositing the deposit token in any Yearn Vault that accepts that token.
 
 # Usage
+This PoolTogether Yield Source is compatible for Yearn V2 Vaults with versions lower than 0.3.2 and higher than 0.3.4. This is due to a bug in the vaults' sandwich protection that lead to small temporary dips in share value. At the time of writing, vaults in prod that are not working with this integrations are:
+- WETH yVault (https://etherscan.io/address/0xa9fE4601811213c340e850ea305481afF02f5b28)
+- YFI yVault (https://etherscan.io/address/0xE14d13d8B3b85aF791b2AADD661cDBd5E6097Db1)
+- 1INCH yVault (https://etherscan.io/address/0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67)
+- Curve Iron Bank Pool (https://etherscan.io/address/0x27b7b1ad7288079A66d12350c828D3C00A6F07d7)
+
 ## Deployment
 Follow Installation instructions.
 
