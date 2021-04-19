@@ -86,7 +86,7 @@ Start Mainnet fork in a terminal window with the command:
 yarn start-fork
 ```
 
-In another window, start the scripts to deploy and create a Aave Yield Source Prize Pool, deposit Dai into it, award the prize and withdraw.
+In another window, start the scripts to deploy and create a YearnV2 Yield Source Prize Pool, deposit USDC into it, send some profit to the Vault, award the prize and withdraw. 
 
 ```
 yarn deploy-fork && yarn run-fork
