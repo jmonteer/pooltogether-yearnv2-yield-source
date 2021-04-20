@@ -146,8 +146,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @dev they will be queued for retries in subsequent deposits
     /// @return The actual amount of shares that were received for the deposited tokens
     function _depositInVault() internal returns (uint256) {
+        IYVaultV2 v = vault; // NOTE: for gas usage
+        if(token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
+            token.safeApprove(address(v), 0);
+            token.safeApprove(address(v), type(uint256).max);
+        }
         // this will deposit full balance (for cases like not enough room in Vault)
-        return vault.deposit();
+        return v.deposit();
     }
 
     /// @notice Withdraws requested amount from Vault
