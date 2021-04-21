@@ -71,8 +71,6 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
         vault = _vault;
         token = _token;
 
-        _token.safeApprove(address(_vault), type(uint256).max);
-
         emit YieldSourceYearnV2Initialized(
             _vault,
             _token
