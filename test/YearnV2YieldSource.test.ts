@@ -53,6 +53,8 @@ describe('yearnV2YieldSource', () => {
     await vault.mock.token.returns(underlyingToken.address);
     await vault.mock.activation.returns(1617880430);
     await vault.mock.apiVersion.returns("0.3.0");
+    await underlyingToken.mock.allowance
+      .returns(toWei('0'));
     await underlyingToken.mock.approve
       .withArgs(vault.address, MAX_INTEGER)
       .returns(true);
@@ -306,10 +308,12 @@ describe('yearnV2YieldSource', () => {
         .returns(redeemAmount);
       await vault.mock.decimals.returns(UNDERLYING_TOKEN_DECIMALS);
 
+      await underlyingToken.mock.balanceOf
+        .withArgs(yearnV2YieldSource.address)
+        .returns('0');
       await underlyingToken.mock.transfer
         .withArgs(yieldSourceOwner.address, redeemAmount)
         .returns(true);
-
 
       await expect(
         yearnV2YieldSource.connect(yieldSourceOwner).redeemToken(redeemAmount),
@@ -335,6 +339,9 @@ describe('yearnV2YieldSource', () => {
           .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
           .returns(redeemAmount);
 
+      await underlyingToken.mock.balanceOf
+          .withArgs(yearnV2YieldSource.address)
+          .returns('0');
       await underlyingToken.mock.transfer
         .withArgs(yieldSourceOwner.address, yieldSourceOwnerLowBalance)
         .returns(true);

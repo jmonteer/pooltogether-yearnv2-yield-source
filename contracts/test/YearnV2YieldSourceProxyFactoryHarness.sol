@@ -23,8 +23,8 @@ contract YearnV2YieldSourceProxyFactoryHarness is ProxyFactory {
   /// @param _token Underlying Token address
   /// @return A reference to the new proxied YearnV2 Yield Sources
   function create(
-    address _vault,
-    address _token
+    IYVaultV2 _vault,
+    IERC20Upgradeable _token
   ) public returns (YearnV2YieldSourceHarness) {
     YearnV2YieldSourceHarness yearnV2YieldSourceHarness = YearnV2YieldSourceHarness(deployMinimal(address(instance), ""));
 

@@ -22,8 +22,8 @@ contract YearnV2YieldSourceProxyFactory is ProxyFactory {
   /// @param _token Underlying Token address
   /// @return A reference to the new proxied YearnV2 Yield Source
   function create(
-    address _vault,
-    address _token
+    IYVaultV2 _vault,
+    IERC20Upgradeable _token
   ) public returns (YearnV2YieldSource) {
     YearnV2YieldSource yearnV2YieldSource = YearnV2YieldSource(deployMinimal(address(instance), ""));
 
