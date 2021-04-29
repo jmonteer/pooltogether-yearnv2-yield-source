@@ -254,7 +254,9 @@ describe('yearnV2YieldSource', () => {
 
   describe('setMaxLosses()', () => {
     it('should set max losses', async () => {
-      await yearnV2YieldSource.connect(yieldSourceOwner).setMaxLosses(10_000);
+      await expect(yearnV2YieldSource.connect(yieldSourceOwner).setMaxLosses(10_000))
+      .to.emit(yearnV2YieldSource, "MaxLossesChanged")
+      .withArgs(10_000);
       expect(await yearnV2YieldSource.maxLosses()).to.eq(10_000);
     })
 

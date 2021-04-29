@@ -37,6 +37,11 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         IERC20Upgradeable token
     );
 
+    /// @notice Emitted when the Max Losses accepted when withdrawing from yVault are changed
+    event MaxLossesChanged(
+        uint256 newMaxLosses
+    );
+
     /// @notice Emitted when asset tokens are supplied to the yield source
     event SuppliedTokenTo(
         address indexed from,
@@ -86,6 +91,8 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         require(_maxLosses <= 10_000, "!losses set too high");
 
         maxLosses = _maxLosses;
+
+        emit MaxLossesChanged(_maxLosses);
     }
 
     /// @notice Returns the ERC20 asset token used for deposits
