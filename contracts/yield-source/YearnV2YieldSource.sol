@@ -4,6 +4,7 @@ pragma solidity 0.6.12;
 import "../interfaces/IYieldSource.sol";
 import "../external/yearn/IYVaultV2.sol";
 import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
@@ -13,7 +14,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol
 /// @dev This is a generic contract that will work with main Yearn Vaults. Vaults using v0.3.2 to v0.3.4 included
 /// @dev are not compatible, as they had dips in shareValue due to a small miscalculation
 /// @notice Yield Source Prize Pools subclasses need to implement this interface so that yield can be generated.
-contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
+contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint;
     
@@ -22,7 +23,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
     /// @dev Deposit Token contract address
     IERC20Upgradeable internal token; 
     /// @dev Max % of losses that the Yield Source will accept from the Vault in BPS
-    uint256 constant internal MAX_LOSSES = 10_000; // 100%
+    uint256 public maxLosses = 0; // 100% would be 10_000
 
     /// @notice Emitted when asset tokens are supplied to sponsor the yield source
     event Sponsored(
@@ -71,12 +72,20 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
         vault = _vault;
         token = _token;
 
+        __Ownable_init();
+
         _token.safeApprove(address(vault), type(uint256).max);
 
         emit YieldSourceYearnV2Initialized(
             _vault,
             _token
         );
+    }
+
+    function setMaxLosses(uint256 _maxLosses) external onlyOwner {
+        require(_maxLosses <= 10_000, "!losses set too high");
+
+        maxLosses = _maxLosses;
     }
 
     /// @notice Returns the ERC20 asset token used for deposits
@@ -164,7 +173,11 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable {
         uint256 yShares = _tokenToYShares(amount);
         uint256 previousBalance = token.balanceOf(address(this));
         // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
-        vault.withdraw(yShares, address(this), MAX_LOSSES);
+        if(maxLosses != 0) {
+            vault.withdraw(yShares, address(this), maxLosses);
+        } else {
+            vault.withdraw(yShares);
+        }
         uint256 currentBalance = token.balanceOf(address(this));
 
         return previousBalance.sub(currentBalance);
