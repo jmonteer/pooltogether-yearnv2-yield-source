@@ -72,7 +72,6 @@ describe('yearnV2YieldSource', () => {
     );
     const hardhatYearnYieldSourceHarness = await YearnYieldSource.deploy();
 
-
     const initializeTx = await hardhatYearnYieldSourceHarness.initialize(
       vault.address,
       underlyingToken.address
@@ -86,6 +85,42 @@ describe('yearnV2YieldSource', () => {
 
     await yearnV2YieldSource.transferOwnership(yieldSourceOwner.address)
   });
+
+  describe('initialize()', () => {
+    const compatibleVersions = ['0.3.0', '0.3.1', '0.3.5']
+    for(const v of compatibleVersions) {
+      it(`should let use a ${v} vault`, async () => {
+        await vault.mock.apiVersion.returns(v);
+        const YearnYieldSource = await ethers.getContractFactory(
+          'YearnV2YieldSourceHarness',
+        );
+        const hardhatYearnYieldSourceHarness = await YearnYieldSource.deploy();
+    
+        await expect(hardhatYearnYieldSourceHarness.initialize(
+          vault.address,
+          underlyingToken.address
+        ))
+        .to.emit(hardhatYearnYieldSourceHarness, "YieldSourceYearnV2Initialized")
+        .withArgs(vault.address, underlyingToken.address);
+      })
+    }
+
+    const incompatibleVersions = ['0.3.2', '0.3.3', '0.3.4']
+    for(const v of incompatibleVersions) {
+      it(`should not let use a ${v} vault`, async () => {
+        await vault.mock.apiVersion.returns(v);
+        const YearnYieldSource = await ethers.getContractFactory(
+          'YearnV2YieldSourceHarness',
+        );
+        const hardhatYearnYieldSourceHarness = await YearnYieldSource.deploy();
+    
+        await expect(hardhatYearnYieldSourceHarness.initialize(
+          vault.address,
+          underlyingToken.address
+        )).to.be.revertedWith("!vault not compatible")
+      })
+    }
+})
 
   describe('create()', () => {
     it('should create yearnV2YieldSource', async () => {
@@ -303,6 +338,43 @@ describe('yearnV2YieldSource', () => {
       await underlyingToken.mock.transfer
         .withArgs(yieldSourceOwner.address, redeemAmount)
         .returns(true);
+
+      const balanceAfter = await vault.balanceOf(yearnV2YieldSource.address)
+      const balanceDiff = yieldSourceOwnerBalance.sub(balanceAfter);
+
+      await underlyingToken.mock.transfer
+      .withArgs(yieldSourceOwner.address, balanceDiff)
+      .returns(true);
+
+      await yearnV2YieldSource.connect(yieldSourceOwner).redeemToken(redeemAmount);
+
+      expect(await yearnV2YieldSource.callStatic.balanceOf(yieldSourceOwner.address)).to.equal(
+        yieldSourceOwnerBalance.sub(redeemAmount),
+      );
+    });
+
+    it('should redeem assets with maxLosses set', async () => {
+      await yearnV2YieldSource.mint(yieldSourceOwner.address, yieldSourceOwnerBalance);
+      await underlyingToken.mock.balanceOf
+      .withArgs(yearnV2YieldSource.address)
+      .returns(toWei('0'));
+      
+      await vault.mock.balanceOf
+        .withArgs(yearnV2YieldSource.address)
+        .returns(yieldSourceOwnerBalance);
+      await vault.mock.pricePerShare.returns(toWei('1'));
+      await vault.mock.maxAvailableShares
+        .returns(redeemAmount);
+      await vault.mock['withdraw(uint256,address,uint256)']
+          .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
+          .returns(redeemAmount);
+      await vault.mock.decimals.returns(UNDERLYING_TOKEN_DECIMALS);
+
+      await underlyingToken.mock.transfer
+        .withArgs(yieldSourceOwner.address, redeemAmount)
+        .returns(true);
+
+      await yearnV2YieldSource.connect(yieldSourceOwner).setMaxLosses(10_000);
 
       const balanceAfter = await vault.balanceOf(yearnV2YieldSource.address)
       const balanceDiff = yieldSourceOwnerBalance.sub(balanceAfter);

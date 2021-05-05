@@ -65,6 +65,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         IERC20Upgradeable _token
     ) 
         public 
+        initializer
     {
         require(address(vault) == address(0), "!already initialized");
         require(_vault.token() == address(_token), "!incorrect vault");
