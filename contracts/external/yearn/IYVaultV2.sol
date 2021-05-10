@@ -33,7 +33,7 @@ interface IYVaultV2 is IERC20 {
     // NOTE: Vyper produces multiple signatures for a given function with "default" args
     // function withdraw() external returns (uint256);
 
-    // function withdraw(uint256 maxShares) external returns (uint256);
+    function withdraw(uint256 maxShares) external returns (uint256);
 
     // function withdraw(uint256 maxShares, address recipient) external returns (uint256);
 
