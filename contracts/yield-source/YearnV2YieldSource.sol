@@ -3,11 +3,14 @@ pragma solidity 0.6.12;
 
 import "../interfaces/IYieldSource.sol";
 import "../external/yearn/IYVaultV2.sol";
+
 import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "@openzeppelin/"
+
 
 /// @title Yield source for a PoolTogether prize pool that generates yield by depositing into Yearn Vaults.
 /// @dev This contract inherits from the ERC20 implementation to keep track of users deposits
@@ -165,7 +168,6 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     function _depositInVault() internal returns (uint256) {
         IYVaultV2 v = vault; // NOTE: for gas usage
         if(token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
-            token.safeApprove(address(v), 0);
             token.safeApprove(address(v), type(uint256).max);
         }
         // this will deposit full balance (for cases like not enough room in Vault)
