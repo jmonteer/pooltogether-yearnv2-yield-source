@@ -70,13 +70,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         public 
         initializer
     {
-        require(address(vault) == address(0), "earnV2YieldSource:: already initialized");
-        require(_vault.token() == address(_token), "earnV2YieldSource:: incorrect vault");
-        require(_vault.activation() != uint256(0), "earnV2YieldSource:: vault not initialized");
+        require(address(vault) == address(0), "YearnV2YieldSource:: already initialized");
+        require(_vault.token() == address(_token), "YearnV2YieldSource:: incorrect vault");
+        require(_vault.activation() != uint256(0), "YearnV2YieldSource:: vault not initialized");
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "earnV2YieldSource:: vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "earnV2YieldSource:: vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "earnV2YieldSource:: vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "YearnV2YieldSource:: vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "YearnV2YieldSource:: vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "YearnV2YieldSource:: vault not compatible");
 
         vault = _vault;
         token = _token;
