@@ -3,18 +3,21 @@ pragma solidity 0.6.12;
 
 import "../interfaces/IYieldSource.sol";
 import "../external/yearn/IYVaultV2.sol";
+
 import "@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 
 /// @title Yield source for a PoolTogether prize pool that generates yield by depositing into Yearn Vaults.
 /// @dev This contract inherits from the ERC20 implementation to keep track of users deposits
 /// @dev This is a generic contract that will work with main Yearn Vaults. Vaults using v0.3.2 to v0.3.4 included
 /// @dev are not compatible, as they had dips in shareValue due to a small miscalculation
 /// @notice Yield Source Prize Pools subclasses need to implement this interface so that yield can be generated.
-contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeable {
+contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint;
     
@@ -67,18 +70,19 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         public 
         initializer
     {
-        require(address(vault) == address(0), "!already initialized");
-        require(_vault.token() == address(_token), "!incorrect vault");
-        require(_vault.activation() != uint256(0), "!vault not initialized");
+        require(address(vault) == address(0), "YearnV2YieldSource:: already initialized");
+        require(_vault.token() == address(_token), "YearnV2YieldSource:: incorrect vault");
+        require(_vault.activation() != uint256(0), "YearnV2YieldSource:: vault not initialized");
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "!vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "!vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "!vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "YearnV2YieldSource:: vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "YearnV2YieldSource:: vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "YearnV2YieldSource:: vault not compatible");
 
         vault = _vault;
         token = _token;
 
         __Ownable_init();
+        __ReentrancyGuard_init();
 
         _token.safeApprove(address(vault), type(uint256).max);
 
@@ -89,7 +93,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     }
 
     function setMaxLosses(uint256 _maxLosses) external onlyOwner {
-        require(_maxLosses <= 10_000, "!losses set too high");
+        require(_maxLosses <= 10_000, "YearnV2YieldSource:: losses set too high");
 
         maxLosses = _maxLosses;
 
@@ -114,7 +118,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @dev Asset tokens are supplied to the yield source, then deposited into Aave
     /// @param _amount The amount of asset tokens to be supplied
     /// @param to The user whose balance will receive the tokens
-    function supplyTokenTo(uint256 _amount, address to) override external {
+    function supplyTokenTo(uint256 _amount, address to) external override nonReentrant {
         uint256 shares = _tokenToShares(_amount);
 
         _mint(to, shares);
@@ -132,7 +136,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @dev Asset tokens are withdrawn from Yearn's Vault, then transferred from the yield source to the user's wallet
     /// @param amount The amount of asset tokens to be redeemed
     /// @return The actual amount of tokens that were redeemed
-    function redeemToken(uint256 amount) external override returns (uint256) {
+    function redeemToken(uint256 amount) external override nonReentrant returns (uint256) {
         uint256 shares = _tokenToShares(amount);
 
         uint256 withdrawnAmount = _withdrawFromVault(amount);
@@ -148,7 +152,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @notice Allows someone to deposit into the yield source without receiving any shares
     /// @dev This allows anyone to distribute tokens among the share holders
     /// @param amount The amount of tokens to deposit
-    function sponsor(uint256 amount) external {
+    function sponsor(uint256 amount) external nonReentrant {
         token.safeTransferFrom(msg.sender, address(this), amount);
 
         _depositInVault();
@@ -165,7 +169,6 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     function _depositInVault() internal returns (uint256) {
         IYVaultV2 v = vault; // NOTE: for gas usage
         if(token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
-            token.safeApprove(address(v), 0);
             token.safeApprove(address(v), type(uint256).max);
         }
         // this will deposit full balance (for cases like not enough room in Vault)
