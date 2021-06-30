@@ -168,8 +168,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @return The actual amount of shares that were received for the deposited tokens
     function _depositInVault() internal returns (uint256) {
         IYVaultV2 v = vault; // NOTE: for gas usage
-        if(token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
-            token.safeApprove(address(v), type(uint256).max);
+        IERC20Upgradeable _token = token;
+        if(_token.allowance(address(this), address(v)) < _token.balanceOf(address(this))) {
+            _token.safeApprove(address(v), type(uint256).max);
         }
         // this will deposit full balance (for cases like not enough room in Vault)
         return v.deposit();
@@ -181,8 +182,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @param amount amount of asset tokens to be redeemed
     /// @return Tokens received from the Vault
     function _withdrawFromVault(uint amount) internal returns (uint256) {
+        IERC20Upgradeable _token = token;
         uint256 yShares = _tokenToYShares(amount);
-        uint256 previousBalance = token.balanceOf(address(this));
+        uint256 previousBalance = _token.balanceOf(address(this));
         // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
         uint256 _maxLosses = maxLosses;
         if(_maxLosses != 0) {
@@ -190,7 +192,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         } else {
             vault.withdraw(yShares);
         }
-        uint256 currentBalance = token.balanceOf(address(this));
+        uint256 currentBalance = _token.balanceOf(address(this));
 
         return previousBalance.sub(currentBalance);
     }
