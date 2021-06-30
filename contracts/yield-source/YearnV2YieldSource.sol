@@ -70,7 +70,6 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         public 
         initializer
     {
-        require(address(vault) == address(0), "YearnV2YieldSource:: already initialized");
         require(_vault.token() == address(_token), "YearnV2YieldSource:: incorrect vault");
         require(_vault.activation() != uint256(0), "YearnV2YieldSource:: vault not initialized");
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
