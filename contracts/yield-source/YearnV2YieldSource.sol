@@ -168,8 +168,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @return The actual amount of shares that were received for the deposited tokens
     function _depositInVault() internal returns (uint256) {
         IYVaultV2 v = vault; // NOTE: for gas usage
-        if(token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
-            token.safeApprove(address(v), type(uint256).max);
+        IERC20Upgradeable _token = token;
+        if(_token.allowance(address(this), address(v)) < _token.balanceOf(address(this))) {
+            _token.safeApprove(address(v), type(uint256).max);
         }
         // this will deposit full balance (for cases like not enough room in Vault)
         return v.deposit();
