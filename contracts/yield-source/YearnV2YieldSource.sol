@@ -184,8 +184,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         uint256 yShares = _tokenToYShares(amount);
         uint256 previousBalance = token.balanceOf(address(this));
         // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
-        if(maxLosses != 0) {
-            vault.withdraw(yShares, address(this), maxLosses);
+        uint256 _maxLosses = maxLosses;
+        if(_maxLosses != 0) {
+            vault.withdraw(yShares, address(this), _maxLosses);
         } else {
             vault.withdraw(yShares);
         }
