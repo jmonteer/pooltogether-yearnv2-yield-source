@@ -68,7 +68,7 @@ const config: HardhatUserConfig = {
   },
   dependencyCompiler: {
     paths: ['@pooltogether/pooltogether-proxy-factory/contracts/GenericProxyFactory.sol'],
-  }
+  },
 };
 
 verifyTask;

@@ -6,7 +6,7 @@
 
 <br />
 
-# PoolTogether YearnV2 Yield Source 👻
+# PoolTogether YearnV2 Yield Source
 
 [![Coverage Status](https://coveralls.io/repos/github/jmonteer/pooltogether-yearnv2-yield-source/badge.svg?branch=master)](https://coveralls.io/github/jmonteer/pooltogether-yearnv2-yield-source?branch=master) [![built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/) [![Coveralls](https://github.com/jmonteer/pooltogether-yearnv2-yield-source/actions/workflows/main.yml/badge.svg)](https://github.com/jmonteer/pooltogether-yearnv2-yield-source/actions/workflows/main.yml)
 
@@ -89,7 +89,7 @@ Start Mainnet fork in a terminal window with the command:
 yarn start-fork
 ```
 
-In another window, start the scripts to deploy and create a YearnV2 Yield Source Prize Pool, deposit USDC into it, send some profit to the Vault, award the prize and withdraw. 
+In another window, start the scripts to deploy and create a YearnV2 Yield Source Prize Pool, deposit USDC into it, send some profit to the Vault, award the prize and withdraw.
 
 ```
 yarn deploy-fork && yarn run-fork

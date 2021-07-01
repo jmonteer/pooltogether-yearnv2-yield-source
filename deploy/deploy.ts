@@ -6,7 +6,13 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction, DeploymentSubmission, DeployResult } from 'hardhat-deploy/types';
 
 import { DAI_VAULT_ADDRESS_MAINNET } from '../Constant';
-import { action, alert, info, success, isTestEnvironment as isTestEnvironmentHelper } from '../helpers';
+import {
+  action,
+  alert,
+  info,
+  success,
+  isTestEnvironment as isTestEnvironmentHelper,
+} from '../helpers';
 
 const displayLogs = !process.env.HIDE_DEPLOY_LOG;
 
