@@ -23,8 +23,10 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
 
     /// @notice Yearn Vault which manages `token` to generate yield
     IYVaultV2 public vault;
+
     /// @dev Deposit Token contract address
     IERC20Upgradeable internal token;
+
     /// @dev Max % of losses that the Yield Source will accept from the Vault in BPS
     uint256 public maxLosses = 0; // 100% would be 10_000
 
@@ -35,9 +37,12 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     );
 
     /// @notice Emitted when the yield source is initialized
-    event YieldSourceYearnV2Initialized(
+    event YearnV2YieldSourceInitialized(
         IYVaultV2 vault,
-        IERC20Upgradeable token
+        uint8 decimals,
+        string symbol,
+        string name,
+        address indexed owner
     );
 
     /// @notice Emitted when the Max Losses accepted when withdrawing from yVault are changed
@@ -60,39 +65,63 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         uint256 amount
     );
 
+    /// @notice Mock Initializer to initialize implementations used by minimal proxies.
+    function freeze() public initializer {
+        //no-op
+    }
+
     /// @notice Initializes the yield source with
-    /// @param _vault YearnV2 Vault in which the Yield Source will deposit `token` to generate Yield
-    /// @param _token Underlying Token / Deposit Token
+    /// @param _vault Yearn V2 Vault in which the Yield Source will deposit `token` to generate Yield
+    /// @param _decimals Number of decimals the shares (inherited ERC20) will have.  Same as underlying asset to ensure same ExchangeRates.
+    /// @param _symbol Token symbol for the underlying ERC20 shares (eg: yvysDAI).
+    /// @param _name Token name for the underlying ERC20 shares (eg: PoolTogether Yearn V2 Vault DAI Yield Source).
+    /// @param _owner Yearn V2 Vault Yield Source owner.
     function initialize(
         IYVaultV2 _vault,
-        IERC20Upgradeable _token
+        uint8 _decimals,
+        string calldata _symbol,
+        string calldata _name,
+        address _owner
     )
         public
         initializer
+        returns (bool)
     {
-        require(_vault.token() == address(_token), "YearnV2YieldSource:: incorrect vault");
-        require(_vault.activation() != uint256(0), "YearnV2YieldSource:: vault not initialized");
+        require(address(vault) == address(0), "YearnV2YieldSource/already-initialized");
+        require(_vault.activation() != uint256(0), "YearnV2YieldSource/vault-not-initialized");
+
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "YearnV2YieldSource:: vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "YearnV2YieldSource:: vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "YearnV2YieldSource:: vault not compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "YearnV2YieldSource/vault-not-compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "YearnV2YieldSource/vault-not-compatible");
+        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "YearnV2YieldSource/vault-not-compatible");
 
         vault = _vault;
-        token = _token;
+        token = IERC20Upgradeable(_vault.token());
 
         __Ownable_init();
+        transferOwnership(_owner);
+
         __ReentrancyGuard_init();
 
-        _token.safeApprove(address(vault), type(uint256).max);
+        __ERC20_init(_name, _symbol);
+        require(_decimals > 0, "YearnV2YieldSource/decimals-gt-zero");
+        _setupDecimals(_decimals);
 
-        emit YieldSourceYearnV2Initialized(
+        token.safeApprove(address(_vault), type(uint256).max);
+
+        emit YearnV2YieldSourceInitialized(
             _vault,
-            _token
+            _decimals,
+            _symbol,
+            _name,
+            _owner
         );
+
+        return true;
     }
 
     function setMaxLosses(uint256 _maxLosses) external onlyOwner {
-        require(_maxLosses <= 10_000, "YearnV2YieldSource:: losses set too high");
+        require(_maxLosses <= 10_000, "YearnV2YieldSource/losses-set-too-high");
 
         maxLosses = _maxLosses;
 
