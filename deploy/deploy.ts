@@ -1,102 +1,150 @@
-import chalk from 'chalk';
+import { Contract } from 'ethers';
+import { getChainByChainId } from 'evm-chains';
+import { writeFileSync } from 'fs';
 
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { DeployFunction, DeployResult } from 'hardhat-deploy/types';
+import { DeployFunction, DeploymentSubmission, DeployResult } from 'hardhat-deploy/types';
+
+import { DAI_VAULT_ADDRESS_MAINNET } from '../Constant';
+import { action, alert, info, success, isTestEnvironment as isTestEnvironmentHelper } from '../helpers';
 
 const displayLogs = !process.env.HIDE_DEPLOY_LOG;
 
-function dim(logMessage: string) {
-  if (displayLogs) {
-    console.log(chalk.dim(logMessage));
-  }
-}
-
-function cyan(logMessage: string) {
-  if (displayLogs) {
-    console.log(chalk.cyan(logMessage));
-  }
-}
-
-function yellow(logMessage: string) {
-  if (displayLogs) {
-    console.log(chalk.yellow(logMessage));
-  }
-}
-
-function green(logMessage: string) {
-  if (displayLogs) {
-    console.log(chalk.green(logMessage));
-  }
-}
-
 function displayResult(name: string, result: DeployResult) {
   if (!result.newlyDeployed) {
-    yellow(`Re-used existing ${name} at ${result.address}`);
+    alert(`Re-used existing ${name} at ${result.address}`);
   } else {
-    green(`${name} deployed at ${result.address}`);
+    success(`${name} deployed at ${result.address}`);
   }
 }
 
-const chainName = (chainId: number) => {
-  switch (chainId) {
-    case 1:
-      return 'Mainnet';
-    case 3:
-      return 'Ropsten';
-    case 4:
-      return 'Rinkeby';
-    case 5:
-      return 'Goerli';
-    case 42:
-      return 'Kovan';
-    case 77:
-      return 'POA Sokol';
-    case 99:
-      return 'POA';
-    case 100:
-      return 'xDai';
-    case 137:
-      return 'Matic';
-    case 31337:
-      return 'HardhatEVM';
-    case 80001:
-      return 'Matic (Mumbai)';
-    default:
-      return 'Unknown';
-  }
-};
-
 const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments, getChainId, ethers } = hre;
-  const { deploy } = deployments;
+  info('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
+  info('PoolTogether YearnV2 Yield Source - Deploy Script');
+  info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
 
-  let { deployer, admin } = await getNamedAccounts();
+  const { artifacts, getNamedAccounts, deployments, getChainId, ethers, network } = hre;
+  const { deploy } = deployments;
+  const { getContractAt, provider } = ethers;
+
+  const outputDirectory = `./deployments/${network.name}`;
+
+  let { deployer, multisig } = await getNamedAccounts();
 
   const chainId = parseInt(await getChainId());
 
   // 31337 is unit testing, 1337 is for coverage
-  const isTestEnvironment = chainId === 31337 || chainId === 1337;
+  const isNotTestChainId = chainId !== 31337 && chainId !== 1337;
+  const networkName = isNotTestChainId ? getChainByChainId(chainId)?.network : 'Test';
+  const isTestEnvironment = isTestEnvironmentHelper(network);
 
-  const signer = ethers.provider.getSigner(deployer);
+  info(`Network: ${networkName} (${isTestEnvironment ? 'local' : 'remote'})`);
+  info(`Deployer: ${deployer}`);
 
-  dim('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
-  dim('PoolTogether YearnV2 Yield Source - Deploy Script');
-  dim('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
-
-  dim(`network: ${chainName(chainId)} (${isTestEnvironment ? 'local' : 'remote'})`);
-  dim(`deployer: ${deployer}`);
-
-  if (!admin) {
-    admin = signer._address;
+  if (!multisig) {
+    alert(
+      `Multisig address not defined for network ${networkName}, falling back to deployer: ${deployer}`,
+    );
+    multisig = deployer;
+  } else {
+    info(`Multisig: ${multisig}`);
   }
 
-  dim(`deployer: ${admin}`);
-
-  cyan(`\nDeploying YearnV2YieldSourceProxyFactory...`);
-  const yearnV2YieldSourceProxyFactoryResult = await deploy('YearnV2YieldSourceProxyFactory', {
+  action(`Deploying YearnV2YieldSource...`);
+  const yearnV2YieldSourceResult: DeployResult = await deploy('YearnV2YieldSource', {
     from: deployer,
+    skipIfAlreadyDeployed: true,
   });
-  displayResult('YearnV2YieldSourceProxyFactory', yearnV2YieldSourceProxyFactoryResult);
+
+  displayResult('YearnV2YieldSource', yearnV2YieldSourceResult);
+
+  const yearnV2YieldSourceContract = await getContractAt(
+    'YearnV2YieldSource',
+    yearnV2YieldSourceResult.address,
+  );
+
+  if (yearnV2YieldSourceContract.newlyDeployed) {
+    action('Calling mockInitialize()');
+    await yearnV2YieldSourceContract.freeze();
+    success('mockInitialize called successfully');
+  }
+
+  let proxyFactoryContract: Contract;
+
+  if (isTestEnvironment) {
+    action(`TestEnvironment detected, deploying a local GenericProxyFactory`);
+
+    const genericProxyFactoryResult: DeployResult = await deploy('GenericProxyFactory', {
+      from: deployer,
+      skipIfAlreadyDeployed: true,
+    });
+
+    proxyFactoryContract = await getContractAt(
+      'GenericProxyFactory',
+      genericProxyFactoryResult.address,
+    );
+
+    success(`Deployed a local GenericProxyFactory at ${proxyFactoryContract.address}`);
+  } else {
+    let { genericProxyFactory } = await getNamedAccounts();
+    proxyFactoryContract = await getContractAt('GenericProxyFactory', genericProxyFactory);
+    success(`GenericProxyFactory deployed at ${proxyFactoryContract.address}`);
+  }
+
+  action(`Deploying YearnV2DAIYieldSource...`);
+  const yearnV2YieldSourceArtifact = await artifacts.readArtifact('YearnV2YieldSource');
+  const yearnV2YieldSourceABI = yearnV2YieldSourceArtifact.abi;
+
+  const yearnV2YieldSourceInterface = new ethers.utils.Interface(yearnV2YieldSourceABI);
+
+  const constructorArgs = yearnV2YieldSourceInterface.encodeFunctionData(
+    yearnV2YieldSourceInterface.getFunction('initialize'),
+    [
+      DAI_VAULT_ADDRESS_MAINNET,
+      18,
+      'yvysDAI',
+      'PoolTogether Yearn V2 Vault DAI Yield Source',
+      multisig,
+    ],
+  );
+
+  const yearnV2DAIYieldSourceResult = await proxyFactoryContract.create(
+    yearnV2YieldSourceContract.address,
+    constructorArgs,
+  );
+
+  const yearnV2DAIYieldSourceReceipt = await provider.getTransactionReceipt(
+    yearnV2DAIYieldSourceResult.hash,
+  );
+
+  const yearnV2DAIYieldSourceEvent = proxyFactoryContract.interface.parseLog(
+    yearnV2DAIYieldSourceReceipt.logs[0],
+  );
+
+  const yearnV2DAIYieldSourceAddress = yearnV2DAIYieldSourceEvent.args.created;
+
+  success(`YearnV2DAIYieldSource deployed at ${yearnV2DAIYieldSourceAddress}`);
+
+  action('Saving deployments file for Yearn V2 DAI');
+
+  const deploymentSubmission: DeploymentSubmission = {
+    address: yearnV2DAIYieldSourceAddress,
+    abi: yearnV2YieldSourceABI,
+    receipt: yearnV2DAIYieldSourceReceipt,
+    transactionHash: yearnV2DAIYieldSourceReceipt.transactionHash,
+    args: [constructorArgs],
+    bytecode: `${await provider.getCode(yearnV2DAIYieldSourceAddress)}`,
+  };
+
+  const outputFile = `${outputDirectory}/AaveDAISwappableYieldSource.json`;
+
+  action(`Writing to ${outputFile}...`);
+  writeFileSync(outputFile, JSON.stringify(deploymentSubmission, null, 2), {
+    encoding: 'utf8',
+    flag: 'w',
+  });
+
+  await deployments.save('AaveDAISwappableYieldSource', deploymentSubmission);
 };
 
 export default deployFunction;
