@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 
@@ -18,6 +19,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 /// @dev are not compatible, as they had dips in shareValue due to a small miscalculation
 /// @notice Yield Source Prize Pools subclasses need to implement this interface so that yield can be generated.
 contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+    using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint;
 
@@ -71,6 +73,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     }
 
     /// @notice Initializes the yield source with
+    /// @dev `isContract()` will return false if an attacker is calling from a constructor https://ethereum.stackexchange.com/a/64340
     /// @param _vault Yearn V2 Vault in which the Yield Source will deposit `token` to generate Yield
     /// @param _decimals Number of decimals the shares (inherited ERC20) will have.  Same as underlying asset to ensure same ExchangeRates.
     /// @param _symbol Token symbol for the underlying ERC20 shares (eg: yvysDAI).
@@ -87,7 +90,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         initializer
         returns (bool)
     {
-        require(address(vault) == address(0), "YearnV2YieldSource/already-initialized");
+        require(address(_vault).isContract(), "YearnV2YieldSource/vault-not-contract-address");
         require(_vault.activation() != uint256(0), "YearnV2YieldSource/vault-not-initialized");
 
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
@@ -104,7 +107,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         __ReentrancyGuard_init();
 
         __ERC20_init(_name, _symbol);
-        require(_decimals > 0, "YearnV2YieldSource/decimals-gt-zero");
+        require(_decimals > 0, "YearnV2YieldSource/decimals-not-greater-than-zero");
         _setupDecimals(_decimals);
 
         token.safeApprove(address(_vault), type(uint256).max);

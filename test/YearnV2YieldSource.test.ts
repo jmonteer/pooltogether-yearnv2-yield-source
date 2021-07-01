@@ -128,6 +128,35 @@ describe('yearnV2YieldSource', () => {
         ).to.be.revertedWith('YearnV2YieldSource/vault-not-compatible');
       });
     }
+
+    it('should fail if vault is not a contract', async () => {
+      await expect(
+        initializeYearnV2YieldSource(
+          randomWalletAddress,
+          yearnV2YieldSourceTokenDecimals
+        ),
+      ).to.be.revertedWith('YearnV2YieldSource/vault-not-contract-address');
+    });
+
+    it('should fail if vault is address zero', async () => {
+      await expect(
+        initializeYearnV2YieldSource(
+          ethers.constants.AddressZero,
+          yearnV2YieldSourceTokenDecimals
+        ),
+      ).to.be.revertedWith('YearnV2YieldSource/vault-not-contract-address');
+    });
+
+    it('should fail if token decimal is not greater than 0', async () => {
+      await vault.mock.apiVersion.returns(compatibleVersions[0]);
+
+      await expect(
+        initializeYearnV2YieldSource(
+          vault.address,
+          0
+        ),
+      ).to.be.revertedWith('YearnV2YieldSource/decimals-not-greater-than-zero');
+    });
   });
 
   describe('create()', () => {
