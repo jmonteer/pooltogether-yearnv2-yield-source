@@ -89,14 +89,8 @@ describe('yearnV2YieldSource', () => {
     const compatibleVersions = ['0.3.0', '0.3.1', '0.3.5'];
     const incompatibleVersions = ['0.3.2', '0.3.3', '0.3.4'];
 
-    let randomWalletAddress: string;
-
     before(() => {
       isInitializeTest = true;
-    });
-
-    beforeEach(() => {
-      randomWalletAddress = ethers.Wallet.createRandom().address;
     });
 
     after(() => {
@@ -129,22 +123,13 @@ describe('yearnV2YieldSource', () => {
       });
     }
 
-    it('should fail if vault is not a contract', async () => {
-      await expect(
-        initializeYearnV2YieldSource(
-          randomWalletAddress,
-          yearnV2YieldSourceTokenDecimals
-        ),
-      ).to.be.revertedWith('YearnV2YieldSource/vault-not-contract-address');
-    });
-
     it('should fail if vault is address zero', async () => {
       await expect(
         initializeYearnV2YieldSource(
           ethers.constants.AddressZero,
           yearnV2YieldSourceTokenDecimals
         ),
-      ).to.be.revertedWith('YearnV2YieldSource/vault-not-contract-address');
+      ).to.be.revertedWith('YearnV2YieldSource/vault-not-zero-address');
     });
 
     it('should fail if token decimal is not greater than 0', async () => {

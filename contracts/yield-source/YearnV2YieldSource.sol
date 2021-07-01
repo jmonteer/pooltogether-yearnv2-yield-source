@@ -90,13 +90,15 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         initializer
         returns (bool)
     {
-        require(address(_vault).isContract(), "YearnV2YieldSource/vault-not-contract-address");
+        require(address(_vault) != address(0), "YearnV2YieldSource/vault-not-zero-address");
         require(_vault.activation() != uint256(0), "YearnV2YieldSource/vault-not-initialized");
 
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "YearnV2YieldSource/vault-not-compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "YearnV2YieldSource/vault-not-compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "YearnV2YieldSource/vault-not-compatible");
+        string memory _vaultAPIVersion = _vault.apiVersion();
+
+        require(!_areEqualStrings(_vaultAPIVersion, "0.3.2"), "YearnV2YieldSource/vault-not-compatible");
+        require(!_areEqualStrings(_vaultAPIVersion, "0.3.3"), "YearnV2YieldSource/vault-not-compatible");
+        require(!_areEqualStrings(_vaultAPIVersion, "0.3.4"), "YearnV2YieldSource/vault-not-compatible");
 
         vault = _vault;
         token = IERC20Upgradeable(_vault.token());
@@ -313,7 +315,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @param a One string
     /// @param b Another string
     /// @return Whether or not the strings are the same or not
-    function areEqualStrings(string memory a, string memory b) internal pure returns (bool) {
+    function _areEqualStrings(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 }
