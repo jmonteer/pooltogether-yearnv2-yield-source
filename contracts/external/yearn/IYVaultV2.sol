@@ -35,7 +35,7 @@ interface IYVaultV2 is IERC20 {
 
     function withdraw(uint256 maxShares) external returns (uint256);
 
-    // function withdraw(uint256 maxShares, address recipient) external returns (uint256);
+    function withdraw(uint256 maxShares, address recipient) external returns (uint256);
 
     function withdraw(uint256 maxShares, address recipient, uint256 maxLoss) external returns (uint256);
 

@@ -6,19 +6,11 @@ import { JsonRpcProvider } from '@ethersproject/providers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import { expect } from 'chai';
+import { Contract } from 'ethers';
+import { MockContract } from 'ethereum-waffle';
 import { ethers, waffle } from 'hardhat';
 
-// TYPES
-import {
-  IERC20Upgradeable as ERC20,
-  IYieldSource as YieldSource,
-  IYVaultV2 as Vault,
-  YearnV2YieldSourceHarness,
-  YearnV2YieldSourceProxyFactoryHarness
-} from '../types';
-// ABIs
 import IYVaultV2 from '../abis/IYVaultV2.json';
-import IYieldSource from '../abis/IYieldSource.json';
 import SafeERC20WrapperUpgradeable from '../abis/SafeERC20WrapperUpgradeable.json';
 
 const toWei = ethers.utils.parseEther;
@@ -31,10 +23,10 @@ describe('yearnV2YieldSource', () => {
   let wallet2: SignerWithAddress;
   let provider: JsonRpcProvider;
 
-  let vault: Vault;
-  let yearnV2YieldSource: YearnV2YieldSourceHarness;
+  let vault: MockContract;
+  let yearnV2YieldSource: Contract;
 
-  let underlyingToken: ERC20;
+  let underlyingToken: MockContract;
 
   beforeEach(async () => {
     const { deployMockContract } = waffle;
@@ -44,12 +36,12 @@ describe('yearnV2YieldSource', () => {
 
     debug('mocking tokens...');
 
-    underlyingToken = ((await deployMockContract(
+    underlyingToken = await deployMockContract(
       contractsOwner,
       SafeERC20WrapperUpgradeable,
-    )) as unknown) as ERC20;
+    );
 
-    vault = ((await deployMockContract(contractsOwner, IYVaultV2)) as unknown) as Vault;
+    vault = await deployMockContract(contractsOwner, IYVaultV2);
     await vault.mock.token.returns(underlyingToken.address);
     await vault.mock.activation.returns(1617880430);
     await vault.mock.apiVersion.returns("0.3.0");
@@ -63,25 +55,21 @@ describe('yearnV2YieldSource', () => {
 
     debug('deploying yearnV2YieldSourceProxyFactory...');
 
-    // const yearnV2YieldSourceProxyFactory = await ethers.getContractFactory(
-    //   'YearnV2YieldSourceProxyFactoryHarness',
-    // );
-    //const hardhatyearnV2YieldSourceProxyFactory = (await yearnV2YieldSourceProxyFactory.deploy()) as YearnV2YieldSourceProxyFactoryHarness;
     const YearnYieldSource = await ethers.getContractFactory(
       'YearnV2YieldSourceHarness',
     );
     const hardhatYearnYieldSourceHarness = await YearnYieldSource.deploy();
 
-    const initializeTx = await hardhatYearnYieldSourceHarness.initialize(
+    await hardhatYearnYieldSourceHarness.initialize(
       vault.address,
       underlyingToken.address
     );
 
-    yearnV2YieldSource = (await ethers.getContractAt(
+    yearnV2YieldSource = await ethers.getContractAt(
       'YearnV2YieldSourceHarness',
       hardhatYearnYieldSourceHarness.address,
       contractsOwner,
-    )) as YearnV2YieldSourceHarness;
+    );
 
     await yearnV2YieldSource.transferOwnership(yieldSourceOwner.address)
   });
@@ -95,7 +83,7 @@ describe('yearnV2YieldSource', () => {
           'YearnV2YieldSourceHarness',
         );
         const hardhatYearnYieldSourceHarness = await YearnYieldSource.deploy();
-    
+
         await expect(hardhatYearnYieldSourceHarness.initialize(
           vault.address,
           underlyingToken.address
@@ -113,7 +101,7 @@ describe('yearnV2YieldSource', () => {
           'YearnV2YieldSourceHarness',
         );
         const hardhatYearnYieldSourceHarness = await YearnYieldSource.deploy();
-    
+
         await expect(hardhatYearnYieldSourceHarness.initialize(
           vault.address,
           underlyingToken.address
@@ -210,7 +198,7 @@ describe('yearnV2YieldSource', () => {
 
     it('should return tokens if totalSupply is 0', async () => {
       await vault.mock.pricePerShare.returns(toWei('2'));
-      
+
       expect(await yearnV2YieldSource.tokenToShares(toWei('100'))).to.equal(toWei('100'));
     });
   });
@@ -275,7 +263,7 @@ describe('yearnV2YieldSource', () => {
       await yearnV2YieldSource.mint(wallet2.address, toWei('100'));
       await supplyTokenTo(yieldSourceOwner, amount);
     });
-    
+
     it('should revert on error', async () => {
       await underlyingToken.mock.approve.withArgs(vault.address, amount).returns(true);
       await vault.mock.deposit
@@ -323,15 +311,15 @@ describe('yearnV2YieldSource', () => {
       await underlyingToken.mock.balanceOf
       .withArgs(yearnV2YieldSource.address)
       .returns(toWei('0'));
-      
+
       await vault.mock.balanceOf
         .withArgs(yearnV2YieldSource.address)
         .returns(yieldSourceOwnerBalance);
       await vault.mock.pricePerShare.returns(toWei('1'));
       await vault.mock.maxAvailableShares
         .returns(redeemAmount);
-      await vault.mock['withdraw(uint256)']
-          .withArgs(redeemAmount)
+      await vault.mock['withdraw(uint256,address)']
+          .withArgs(redeemAmount, yearnV2YieldSource.address)
           .returns(redeemAmount);
       await vault.mock.decimals.returns(UNDERLYING_TOKEN_DECIMALS);
 
@@ -358,7 +346,7 @@ describe('yearnV2YieldSource', () => {
       await underlyingToken.mock.balanceOf
       .withArgs(yearnV2YieldSource.address)
       .returns(toWei('0'));
-      
+
       await vault.mock.balanceOf
         .withArgs(yearnV2YieldSource.address)
         .returns(yieldSourceOwnerBalance);
@@ -397,8 +385,8 @@ describe('yearnV2YieldSource', () => {
       await vault.mock.pricePerShare.returns(toWei('1'));
       await vault.mock.maxAvailableShares
         .returns(redeemAmount);
-      await vault.mock['withdraw(uint256)']
-          .withArgs(redeemAmount)
+      await vault.mock['withdraw(uint256,address)']
+          .withArgs(redeemAmount, yearnV2YieldSource.address)
           .returns(redeemAmount);
       await vault.mock.withdraw
         .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
@@ -436,8 +424,8 @@ describe('yearnV2YieldSource', () => {
           .withArgs(redeemAmount, yearnV2YieldSource.address, 10_000)
           .returns(redeemAmount);
 
-      await vault.mock['withdraw(uint256)']
-          .withArgs(redeemAmount)
+      await vault.mock['withdraw(uint256,address)']
+          .withArgs(redeemAmount,yearnV2YieldSource.address)
           .returns(redeemAmount);
 
       await underlyingToken.mock.balanceOf
