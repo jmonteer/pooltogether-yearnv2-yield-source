@@ -20,11 +20,11 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint;
-    
+
     /// @notice Yearn Vault which manages `token` to generate yield
     IYVaultV2 public vault;
     /// @dev Deposit Token contract address
-    IERC20Upgradeable internal token; 
+    IERC20Upgradeable internal token;
     /// @dev Max % of losses that the Yield Source will accept from the Vault in BPS
     uint256 public maxLosses = 0; // 100% would be 10_000
 
@@ -33,7 +33,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         address indexed user,
         uint256 amount
     );
-    
+
     /// @notice Emitted when the yield source is initialized
     event YieldSourceYearnV2Initialized(
         IYVaultV2 vault,
@@ -60,14 +60,14 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         uint256 amount
     );
 
-    /// @notice Initializes the yield source with 
+    /// @notice Initializes the yield source with
     /// @param _vault YearnV2 Vault in which the Yield Source will deposit `token` to generate Yield
     /// @param _token Underlying Token / Deposit Token
     function initialize(
         IYVaultV2 _vault,
         IERC20Upgradeable _token
-    ) 
-        public 
+    )
+        public
         initializer
     {
         require(address(vault) == address(0), "YearnV2YieldSource:: already initialized");
@@ -168,7 +168,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @return The actual amount of shares that were received for the deposited tokens
     function _depositInVault() internal returns (uint256) {
         IYVaultV2 v = vault; // NOTE: for gas usage
-        if(token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
+        if (token.allowance(address(this), address(v)) < token.balanceOf(address(this))) {
             token.safeApprove(address(v), type(uint256).max);
         }
         // this will deposit full balance (for cases like not enough room in Vault)
@@ -184,8 +184,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         uint256 yShares = _tokenToYShares(amount);
         uint256 previousBalance = token.balanceOf(address(this));
         // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
-        if(maxLosses != 0) {
-            vault.withdraw(yShares, address(this), maxLosses);
+        uint256 _maxLosses = maxLosses;
+        if (_maxLosses != 0) {
+            vault.withdraw(yShares, address(this), _maxLosses);
         } else {
             vault.withdraw(yShares);
         }
@@ -222,7 +223,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     }
 
     /// @notice Support function to retrieve used by Vault
-    /// @dev used to correctly scale prices 
+    /// @dev used to correctly scale prices
     /// @return decimals of vault's shares (and underlying token)
     function _vaultDecimals() internal view returns (uint256) {
         return vault.decimals();
@@ -237,7 +238,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         return tokens.mul(10 ** _vaultDecimals()).div(_pricePerYShare());
     }
 
-    /// @notice Converter from deposit yShares (yearn vault's shares) to token 
+    /// @notice Converter from deposit yShares (yearn vault's shares) to token
     /// @param yShares Vault's shares to be converted
     /// @return tokens that will be received if yShares shares are redeemed
     function _ySharesToToken(uint256 yShares) internal view returns (uint256) {
@@ -248,7 +249,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @param tokens amount of tokens to be converted
     /// @return shares number of shares equivalent to the amount of tokens
     function _tokenToShares(uint256 tokens) internal view returns (uint256 shares) {
-        if(totalSupply() == 0) {
+        if (totalSupply() == 0) {
             shares = tokens;
         } else {
             uint256 _totalTokens = _totalAssetsInToken();
@@ -261,7 +262,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @dev used to calculate how many shares to mint / burn when depositing / withdrawing
     /// @return tokens number of tokens equivalent (in value) to the amount of Yield Source shares
     function _sharesToToken(uint256 shares) internal view returns (uint256 tokens) {
-        if(totalSupply() == 0) {
+        if (totalSupply() == 0) {
             tokens = shares;
         } else {
             uint256 _totalTokens = _totalAssetsInToken();

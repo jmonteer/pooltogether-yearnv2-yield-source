@@ -895,7 +895,7 @@ __metadata:
     hardhat-deploy-ethers: 0.3.0-beta.7
     hardhat-gas-reporter: 1.0.4
     prettier: 2.2.1
-    solhint: 3.3.3
+    solhint: 3.3.6
     solidity-coverage: 0.7.16
     ts-generator: 0.1.1
     ts-node: 9.1.1
@@ -1063,6 +1063,15 @@ __metadata:
   version: 0.12.0
   resolution: "@solidity-parser/parser@npm:0.12.0"
   checksum: a46e2a3b28bd9cd541595f1fa2ba423d6df6b0b4be6184682163ad55d71764411ae611cb225369004734c3a25afe6b116e5141437832fdefe101d5d2c4451edf
+  languageName: node
+  linkType: hard
+
+"@solidity-parser/parser@npm:^0.13.2":
+  version: 0.13.2
+  resolution: "@solidity-parser/parser@npm:0.13.2"
+  dependencies:
+    antlr4ts: ^0.5.0-alpha.4
+  checksum: ad2f8ca981bf7564711e5d9e709c79d3a44116419b21391692b356387c9528fc8056178378a5118d08389d2c73b93ca30cca9df2bd06de17bb0092b433077b33
   languageName: node
   linkType: hard
 
@@ -1642,6 +1651,15 @@ __metadata:
   version: 4.7.1
   resolution: "antlr4@npm:4.7.1"
   checksum: c8488c845f13f0d46b2d9475583d1df75d2b26f8cf59ecddf946fe3788e244ae3efabae8ad19846aa463c653d4307c50c87c0e14c24ed07def9fa22ee116cf75
+  languageName: node
+  linkType: hard
+
+"antlr4ts@npm:^0.5.0-alpha.4":
+  version: 0.5.0-dev
+  resolution: "antlr4ts@npm:0.5.0-dev"
+  dependencies:
+    source-map-support: ^0.5.16
+  checksum: 0f206ef5ef5793456de66545a1bf6d8d52343bc6c6689d941cc16ea3f0b6b18a7710b4cc3946a61d021fda51f93b89adcd7c5d7fe249ea1739b0459e7a85b42c
   languageName: node
   linkType: hard
 
@@ -10939,11 +10957,11 @@ resolve@1.1.x:
   languageName: node
   linkType: hard
 
-"solhint@npm:3.3.3":
-  version: 3.3.3
-  resolution: "solhint@npm:3.3.3"
+"solhint@npm:3.3.6":
+  version: 3.3.6
+  resolution: "solhint@npm:3.3.6"
   dependencies:
-    "@solidity-parser/parser": ^0.12.0
+    "@solidity-parser/parser": ^0.13.2
     ajv: ^6.6.1
     antlr4: 4.7.1
     ast-parents: 0.0.1
@@ -10963,7 +10981,7 @@ resolve@1.1.x:
       optional: true
   bin:
     solhint: solhint.js
-  checksum: 671c02462d97865b19d3058ceb6159c4afa86795390c08280b4a137c6022a434911cb2418befcfaf5262585e9ba13eb7b3010b6f06eef246e3bf1501dac7c414
+  checksum: 3e8320a03932913fb45de1964563f1b8f4f92e3e8cc086d21dd0763fb17a035a1ae1665983e15c1fe57517e9b3b0820c5ec4210288fa7240b06806918d831e55
   languageName: node
   linkType: hard
 
@@ -11082,7 +11100,7 @@ resolve@1.1.x:
   languageName: node
   linkType: hard
 
-"source-map-support@npm:^0.5.13, source-map-support@npm:^0.5.17":
+"source-map-support@npm:^0.5.13, source-map-support@npm:^0.5.16, source-map-support@npm:^0.5.17":
   version: 0.5.19
   resolution: "source-map-support@npm:0.5.19"
   dependencies:
