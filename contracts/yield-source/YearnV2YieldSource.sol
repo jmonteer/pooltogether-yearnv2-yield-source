@@ -73,7 +73,6 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     }
 
     /// @notice Initializes the yield source with
-    /// @dev `isContract()` will return false if an attacker is calling from a constructor https://ethereum.stackexchange.com/a/64340
     /// @param _vault Yearn V2 Vault in which the Yield Source will deposit `token` to generate Yield
     /// @param _decimals Number of decimals the shares (inherited ERC20) will have.  Same as underlying asset to ensure same ExchangeRates.
     /// @param _symbol Token symbol for the underlying ERC20 shares (eg: yvysDAI).
@@ -125,12 +124,17 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         return true;
     }
 
-    function setMaxLosses(uint256 _maxLosses) external onlyOwner {
+    /// @notice Sets the maximum acceptable loss to sustain on withdrawal.
+    /// @dev This function is only callable by the owner of the yield source.
+    /// @param _maxLosses Max Losses in double decimal precision.
+    /// @return True if maxLosses was set successfully.
+    function setMaxLosses(uint256 _maxLosses) external onlyOwner returns(bool) {
         require(_maxLosses <= 10_000, "YearnV2YieldSource/losses-set-too-high");
 
         maxLosses = _maxLosses;
 
         emit MaxLossesChanged(_maxLosses);
+        return true;
     }
 
     /// @notice Returns the ERC20 asset token used for deposits
