@@ -184,18 +184,22 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @return Tokens received from the Vault
     function _withdrawFromVault(uint amount) internal returns (uint256) {
         IERC20Upgradeable _token = token;
+        IYVaultV2 _vault = vault;
         uint256 yShares = _tokenToYShares(amount);
         uint256 previousBalance = _token.balanceOf(address(this));
+
         // we accept losses to avoid being locked in the Vault (if losses happened for some reason)
         uint256 _maxLosses = maxLosses;
+
         if (_maxLosses != 0) {
-            vault.withdraw(yShares, address(this), _maxLosses);
+            _vault.withdraw(yShares, address(this), _maxLosses);
         } else {
-            vault.withdraw(yShares);
+            _vault.withdraw(yShares, address(this));
         }
+
         uint256 currentBalance = _token.balanceOf(address(this));
 
-        return previousBalance.sub(currentBalance);
+        return currentBalance.sub(previousBalance);
     }
 
     /// @notice Returns the amount of shares of yearn's vault that the Yield Source holds
