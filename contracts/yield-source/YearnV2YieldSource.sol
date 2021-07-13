@@ -124,6 +124,18 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         return true;
     }
 
+    /// @notice Approve vault contract to spend max uint256 amount
+    /// @dev Emergency function to re-approve max amount if approval amount dropped too low
+    /// @return true if operation is successful
+    function approveMaxAmount() external onlyOwner returns (bool) {
+        address _vault = address(vault);
+        IERC20Upgradeable _token = token;
+        uint256 allowance = _token.allowance(address(this), _vault);
+
+        _token.safeIncreaseAllowance(_vault, type(uint256).max.sub(allowance));
+        return true;
+    }
+
     /// @notice Sets the maximum acceptable loss to sustain on withdrawal.
     /// @dev This function is only callable by the owner of the yield source.
     /// @param _maxLosses Max Losses in double decimal precision.

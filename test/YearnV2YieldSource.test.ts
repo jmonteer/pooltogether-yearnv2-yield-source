@@ -156,6 +156,19 @@ describe('yearnV2YieldSource', () => {
     });
   });
 
+  describe('approveMaxAmount()', () => {
+    it('should approve vault to spend max uint256 amount', async () => {
+      await underlyingToken.mock.allowance.withArgs(yearnV2YieldSource.address, vault.address).returns(ethers.constants.MaxUint256);
+
+			expect(await yearnV2YieldSource.connect(yieldSourceOwner).callStatic.approveMaxAmount()).to.equal(true);
+      expect(await underlyingToken.allowance(yearnV2YieldSource.address, vault.address)).to.equal(ethers.constants.MaxUint256);
+    });
+
+    it('should fail if not owner', async () => {
+			await expect(yearnV2YieldSource.connect(wallet2).callStatic.approveMaxAmount()).to.be.revertedWith('Ownable: caller is not the owner');
+    });
+  });
+
   describe('balanceOfToken()', () => {
     it('should return user balance', async () => {
       await yearnV2YieldSource.mint(yieldSourceOwner.address, toWei('100'));
