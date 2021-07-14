@@ -300,11 +300,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @param tokens amount of tokens to be converted
     /// @return shares number of shares equivalent to the amount of tokens
     function _tokenToShares(uint256 tokens) internal view returns (uint256 shares) {
-        if (totalSupply() == 0) {
+        uint256 _totalSupply = totalSupply();
+
+        if (_totalSupply == 0) {
             shares = tokens;
         } else {
             uint256 _totalTokens = _totalAssetsInToken();
-            shares = tokens.mul(totalSupply()).div(_totalTokens);
+            shares = tokens.mul(_totalSupply).div(_totalTokens);
         }
     }
 
@@ -313,11 +315,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @dev used to calculate how many shares to mint / burn when depositing / withdrawing
     /// @return tokens number of tokens equivalent (in value) to the amount of Yield Source shares
     function _sharesToToken(uint256 shares) internal view returns (uint256 tokens) {
-        if (totalSupply() == 0) {
+        uint256 _totalSupply = totalSupply();
+
+        if (_totalSupply == 0) {
             tokens = shares;
         } else {
             uint256 _totalTokens = _totalAssetsInToken();
-            tokens = shares.mul(_totalTokens).div(totalSupply());
+            tokens = shares.mul(_totalTokens).div(_totalSupply);
         }
     }
 
