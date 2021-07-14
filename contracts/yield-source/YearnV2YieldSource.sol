@@ -43,8 +43,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         IYVaultV2 vault,
         uint8 decimals,
         string symbol,
-        string name,
-        address indexed owner
+        string name
     );
 
     /// @notice Emitted when the Max Losses accepted when withdrawing from yVault are changed
@@ -77,13 +76,11 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @param _decimals Number of decimals the shares (inherited ERC20) will have.  Same as underlying asset to ensure same ExchangeRates.
     /// @param _symbol Token symbol for the underlying ERC20 shares (eg: yvysDAI).
     /// @param _name Token name for the underlying ERC20 shares (eg: PoolTogether Yearn V2 Vault DAI Yield Source).
-    /// @param _owner Yearn V2 Vault Yield Source owner.
     function initialize(
         IYVaultV2 _vault,
         uint8 _decimals,
         string calldata _symbol,
-        string calldata _name,
-        address _owner
+        string calldata _name
     )
         public
         initializer
@@ -103,8 +100,6 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         token = IERC20Upgradeable(_vault.token());
 
         __Ownable_init();
-        transferOwnership(_owner);
-
         __ReentrancyGuard_init();
 
         __ERC20_init(_name, _symbol);
@@ -117,8 +112,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
             _vault,
             _decimals,
             _symbol,
-            _name,
-            _owner
+            _name
         );
 
         return true;

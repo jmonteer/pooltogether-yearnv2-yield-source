@@ -110,7 +110,6 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
       18,
       'yvysDAI',
       'PoolTogether Yearn V2 Vault DAI Yield Source',
-      multisig,
     ],
   );
 
@@ -142,7 +141,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     bytecode: `${await provider.getCode(yearnV2DAIYieldSourceAddress)}`,
   };
 
-  const outputFile = `${outputDirectory}/AaveDAISwappableYieldSource.json`;
+  const outputFile = `${outputDirectory}/YearnV2DAIYieldSource.json`;
 
   action(`Writing to ${outputFile}...`);
   writeFileSync(outputFile, JSON.stringify(deploymentSubmission, null, 2), {
@@ -150,7 +149,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     flag: 'w',
   });
 
-  await deployments.save('AaveDAISwappableYieldSource', deploymentSubmission);
+  await deployments.save('YearnV2DAIYieldSource', deploymentSubmission);
 };
 
 export default deployFunction;

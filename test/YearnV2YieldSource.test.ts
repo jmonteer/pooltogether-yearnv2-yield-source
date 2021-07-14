@@ -44,7 +44,6 @@ describe('yearnV2YieldSource', () => {
       decimals,
       yearnV2YieldSourceTokenSymbol,
       yearnV2YieldSourceTokenName,
-      yieldSourceOwner.address,
     );
   };
 
@@ -82,6 +81,7 @@ describe('yearnV2YieldSource', () => {
 
     if (!isInitializeTest) {
       await initializeYearnV2YieldSource(vault.address, 18);
+      await yearnV2YieldSource.transferOwnership(yieldSourceOwner.address);
     }
   });
 
@@ -108,7 +108,6 @@ describe('yearnV2YieldSource', () => {
             yearnV2YieldSourceTokenDecimals,
             yearnV2YieldSourceTokenSymbol,
             yearnV2YieldSourceTokenName,
-            yieldSourceOwner.address,
           );
       });
     }
