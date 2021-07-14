@@ -28,7 +28,6 @@ if (alchemyUrl && process.env.FORK_ENABLED && mnemonic) {
     },
   };
 } else {
-  console.log(alchemyUrl, process.env.FORK_ENABLED, mnemonic)
   networks.hardhat = {
     allowUnlimitedContractSize: true,
   };

@@ -13,6 +13,7 @@
 abis
 artifacts
 cache
+deployments/localhost/
 node_modules
 types
 deployments/localhost/

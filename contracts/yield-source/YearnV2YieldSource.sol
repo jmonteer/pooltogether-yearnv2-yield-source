@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 
@@ -18,13 +19,16 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 /// @dev are not compatible, as they had dips in shareValue due to a small miscalculation
 /// @notice Yield Source Prize Pools subclasses need to implement this interface so that yield can be generated.
 contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+    using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint;
 
     /// @notice Yearn Vault which manages `token` to generate yield
     IYVaultV2 public vault;
+
     /// @dev Deposit Token contract address
     IERC20Upgradeable internal token;
+
     /// @dev Max % of losses that the Yield Source will accept from the Vault in BPS
     uint256 public maxLosses = 0; // 100% would be 10_000
 
@@ -35,9 +39,11 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     );
 
     /// @notice Emitted when the yield source is initialized
-    event YieldSourceYearnV2Initialized(
+    event YearnV2YieldSourceInitialized(
         IYVaultV2 vault,
-        IERC20Upgradeable token
+        uint8 decimals,
+        string symbol,
+        string name
     );
 
     /// @notice Emitted when the Max Losses accepted when withdrawing from yVault are changed
@@ -60,43 +66,81 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         uint256 amount
     );
 
+    /// @notice Mock Initializer to initialize implementations used by minimal proxies.
+    function freeze() public initializer {
+        //no-op
+    }
+
     /// @notice Initializes the yield source with
-    /// @param _vault YearnV2 Vault in which the Yield Source will deposit `token` to generate Yield
-    /// @param _token Underlying Token / Deposit Token
+    /// @param _vault Yearn V2 Vault in which the Yield Source will deposit `token` to generate Yield
+    /// @param _decimals Number of decimals the shares (inherited ERC20) will have.  Same as underlying asset to ensure same ExchangeRates.
+    /// @param _symbol Token symbol for the underlying ERC20 shares (eg: yvysDAI).
+    /// @param _name Token name for the underlying ERC20 shares (eg: PoolTogether Yearn V2 Vault DAI Yield Source).
     function initialize(
         IYVaultV2 _vault,
-        IERC20Upgradeable _token
+        uint8 _decimals,
+        string calldata _symbol,
+        string calldata _name
     )
         public
         initializer
+        returns (bool)
     {
-        require(_vault.token() == address(_token), "YearnV2YieldSource:: incorrect vault");
-        require(_vault.activation() != uint256(0), "YearnV2YieldSource:: vault not initialized");
+        require(address(_vault) != address(0), "YearnV2YieldSource/vault-not-zero-address");
+        require(_vault.activation() != uint256(0), "YearnV2YieldSource/vault-not-initialized");
+
         // NOTE: Vaults from 0.3.2 to 0.3.4 have dips in shareValue
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.2"), "YearnV2YieldSource:: vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.3"), "YearnV2YieldSource:: vault not compatible");
-        require(!areEqualStrings(_vault.apiVersion(), "0.3.4"), "YearnV2YieldSource:: vault not compatible");
+        string memory _vaultAPIVersion = _vault.apiVersion();
+
+        require(!_areEqualStrings(_vaultAPIVersion, "0.3.2"), "YearnV2YieldSource/vault-not-compatible");
+        require(!_areEqualStrings(_vaultAPIVersion, "0.3.3"), "YearnV2YieldSource/vault-not-compatible");
+        require(!_areEqualStrings(_vaultAPIVersion, "0.3.4"), "YearnV2YieldSource/vault-not-compatible");
 
         vault = _vault;
-        token = _token;
+        token = IERC20Upgradeable(_vault.token());
 
         __Ownable_init();
         __ReentrancyGuard_init();
 
-        _token.safeApprove(address(vault), type(uint256).max);
+        __ERC20_init(_name, _symbol);
+        require(_decimals > 0, "YearnV2YieldSource/decimals-not-greater-than-zero");
+        _setupDecimals(_decimals);
 
-        emit YieldSourceYearnV2Initialized(
+        token.safeApprove(address(_vault), type(uint256).max);
+
+        emit YearnV2YieldSourceInitialized(
             _vault,
-            _token
+            _decimals,
+            _symbol,
+            _name
         );
+
+        return true;
     }
 
-    function setMaxLosses(uint256 _maxLosses) external onlyOwner {
-        require(_maxLosses <= 10_000, "YearnV2YieldSource:: losses set too high");
+    /// @notice Approve vault contract to spend max uint256 amount
+    /// @dev Emergency function to re-approve max amount if approval amount dropped too low
+    /// @return true if operation is successful
+    function approveMaxAmount() external onlyOwner returns (bool) {
+        address _vault = address(vault);
+        IERC20Upgradeable _token = token;
+        uint256 allowance = _token.allowance(address(this), _vault);
+
+        _token.safeIncreaseAllowance(_vault, type(uint256).max.sub(allowance));
+        return true;
+    }
+
+    /// @notice Sets the maximum acceptable loss to sustain on withdrawal.
+    /// @dev This function is only callable by the owner of the yield source.
+    /// @param _maxLosses Max Losses in double decimal precision.
+    /// @return True if maxLosses was set successfully.
+    function setMaxLosses(uint256 _maxLosses) external onlyOwner returns(bool) {
+        require(_maxLosses <= 10_000, "YearnV2YieldSource/losses-set-too-high");
 
         maxLosses = _maxLosses;
 
         emit MaxLossesChanged(_maxLosses);
+        return true;
     }
 
     /// @notice Returns the ERC20 asset token used for deposits
@@ -281,7 +325,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @param a One string
     /// @param b Another string
     /// @return Whether or not the strings are the same or not
-    function areEqualStrings(string memory a, string memory b) internal pure returns (bool) {
+    function _areEqualStrings(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 }
