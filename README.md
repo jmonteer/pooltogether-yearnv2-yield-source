@@ -8,8 +8,9 @@
 
 # PoolTogether YearnV2 Yield Source
 
-[![Coverage Status](https://coveralls.io/repos/github/jmonteer/pooltogether-yearnv2-yield-source/badge.svg?branch=master)](https://coveralls.io/github/jmonteer/pooltogether-yearnv2-yield-source?branch=master) [![built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/) [![Coveralls](https://github.com/jmonteer/pooltogether-yearnv2-yield-source/actions/workflows/main.yml/badge.svg)](https://github.com/jmonteer/pooltogether-yearnv2-yield-source/actions/workflows/main.yml)
-
+[![Coverage Status](https://coveralls.io/repos/github/pooltogether/pooltogether-yearnv2-yield-source/badge.svg?branch=master)](https://coveralls.io/github/pooltogether/pooltogether-yearnv2-yield-source?branch=master)
+[![Coveralls](https://github.com/pooltogether/pooltogether-yearnv2-yield-source/actions/workflows/main.yml/badge.svg)](https://github.com/pooltogether/pooltogether-yearnv2-yield-source/actions/workflows/main.yml)
+[![built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/)
 
 PoolTogether Yield Source that uses [Yearn](https://yearn.finance/) V2 to generate yield by depositing the deposit token in any Yearn Vault that accepts that token.
 
