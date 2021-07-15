@@ -1,9 +1,8 @@
-import { dai, usdc } from '@studydefi/money-legos/erc20';
-
+import { dai } from '@studydefi/money-legos/erc20';
 import { task } from 'hardhat/config';
 
-import { BINANCE_ADDRESS, BINANCE7_ADDRESS, DAI_RICH_ADDRESS } from '../../Constant';
-import { info, success } from '../helpers';
+import { BINANCE7_ADDRESS, DAI_RICH_ADDRESS } from '../../Constant';
+import { info, success } from '../../helpers';
 
 export default task(
   'fork:distribute-ether-from-binance',
@@ -12,16 +11,19 @@ export default task(
   info('Gathering funds from Binance...');
 
   const { getNamedAccounts, ethers } = hre;
-  const { provider, getContractAt } = ethers;
+  const { provider, getContractAt, getSigners } = ethers;
   const { deployer } = await getNamedAccounts();
+  const [contractsOwner, yieldSourceOwner] = await getSigners();
 
-  const binance = provider.getUncheckedSigner(BINANCE_ADDRESS);
-  const binance7 = provider.getUncheckedSigner(BINANCE7_ADDRESS);
+  const binance = provider.getUncheckedSigner(BINANCE7_ADDRESS);
+  const daiRichSigner = provider.getUncheckedSigner(DAI_RICH_ADDRESS);
 
-  const usdcContract = await getContractAt(usdc.abi, usdc.address, binance7);
+  const daiContract = await getContractAt(dai.abi, dai.address, daiRichSigner);
 
   const recipients: { [key: string]: string } = {
     ['Deployer']: deployer,
+    ['contractsOwner']: contractsOwner.address,
+    ['yieldSourceOwner']: yieldSourceOwner.address,
   };
 
   const keys = Object.keys(recipients);
@@ -30,8 +32,8 @@ export default task(
     const name = keys[i];
     const address = recipients[name];
 
-    info(`Sending 20,000 USDC to ${name}...`);
-    await usdcContract.transfer(address, ethers.utils.parseUnits('20000', 6));
+    info(`Sending 20,000 DAI to ${name}...`);
+    await daiContract.transfer(address, ethers.utils.parseUnits('20000', 18));
 
     info(`Sending 1000 Ether to ${name}...`);
     await binance.sendTransaction({ to: address, value: ethers.utils.parseEther('1000') });

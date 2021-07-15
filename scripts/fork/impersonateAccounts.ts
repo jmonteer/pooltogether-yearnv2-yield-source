@@ -1,7 +1,12 @@
 import { task } from 'hardhat/config';
 
-import { BINANCE_ADDRESS, BINANCE7_ADDRESS, DAI_RICH_ADDRESS, YEARN_GOV_ADDRESS } from '../../Constant';
-import { info, success } from '../helpers';
+import {
+  BINANCE_ADDRESS,
+  BINANCE7_ADDRESS,
+  DAI_RICH_ADDRESS,
+  YEARN_GOV_ADDRESS,
+} from '../../Constant';
+import { info, success } from '../../helpers';
 
 export default task('fork:impersonate-accounts', 'Impersonate accounts').setAction(
   async (taskArguments, hre) => {
@@ -21,11 +26,6 @@ export default task('fork:impersonate-accounts', 'Impersonate accounts').setActi
       method: 'hardhat_impersonateAccount',
       params: [BINANCE7_ADDRESS],
     });
-
-    // await hre.network.provider.request({
-    //   method: 'hardhat_impersonateAccount', 
-    //   params: [YEARN_GOV_ADDRESS],
-    // })
 
     await hre.network.provider.request({
       method: 'hardhat_impersonateAccount',
