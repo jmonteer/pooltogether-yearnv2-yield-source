@@ -12,7 +12,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-
 /// @title Yield source for a PoolTogether prize pool that generates yield by depositing into Yearn Vaults.
 /// @dev This contract inherits from the ERC20 implementation to keep track of users deposits
 /// @dev This is a generic contract that will work with main Yearn Vaults. Vaults using v0.3.2 to v0.3.4 included
@@ -73,11 +72,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
 
     /// @notice Initializes the yield source with
     /// @param _vault Yearn V2 Vault in which the Yield Source will deposit `token` to generate Yield
+    /// @param _token Underlying token address (eg: DAI)
     /// @param _decimals Number of decimals the shares (inherited ERC20) will have.  Same as underlying asset to ensure same ExchangeRates.
     /// @param _symbol Token symbol for the underlying ERC20 shares (eg: yvysDAI).
     /// @param _name Token name for the underlying ERC20 shares (eg: PoolTogether Yearn V2 Vault DAI Yield Source).
     function initialize(
         IYVaultV2 _vault,
+        IERC20Upgradeable _token,
         uint8 _decimals,
         string calldata _symbol,
         string calldata _name
@@ -97,7 +98,9 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         require(!_areEqualStrings(_vaultAPIVersion, "0.3.4"), "YearnV2YieldSource/vault-not-compatible");
 
         vault = _vault;
-        token = IERC20Upgradeable(_vault.token());
+
+        require(address(_token) != address(0), "YearnV2YieldSource/token-not-zero-address");
+        token = _token;
 
         __Ownable_init();
         __ReentrancyGuard_init();
@@ -106,7 +109,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         require(_decimals > 0, "YearnV2YieldSource/decimals-not-greater-than-zero");
         _setupDecimals(_decimals);
 
-        token.safeApprove(address(_vault), type(uint256).max);
+        _token.safeApprove(address(_vault), type(uint256).max);
 
         emit YearnV2YieldSourceInitialized(
             _vault,
@@ -160,18 +163,18 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @dev Shares corresponding to the number of tokens supplied are mint to the user's balance
     /// @dev Asset tokens are supplied to the yield source, then deposited into Aave
     /// @param _amount The amount of asset tokens to be supplied
-    /// @param to The user whose balance will receive the tokens
-    function supplyTokenTo(uint256 _amount, address to) external override nonReentrant {
+    /// @param _to The user whose balance will receive the tokens
+    function supplyTokenTo(uint256 _amount, address _to) external override nonReentrant {
         uint256 shares = _tokenToShares(_amount);
 
-        _mint(to, shares);
+        _mint(_to, shares);
 
         // NOTE: we have to deposit after calculating shares to mint
         token.safeTransferFrom(msg.sender, address(this), _amount);
 
         _depositInVault();
 
-        emit SuppliedTokenTo(msg.sender, shares, _amount, to);
+        emit SuppliedTokenTo(msg.sender, shares, _amount, _to);
     }
 
     /// @notice Redeems asset tokens from the yield source

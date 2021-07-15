@@ -10,7 +10,6 @@ import 'solidity-coverage';
 
 import { HardhatUserConfig } from 'hardhat/config';
 
-import * as verifyTask from './scripts/verify';
 import * as forkTasks from './scripts/fork';
 import networks from './hardhat.network';
 
@@ -71,7 +70,6 @@ const config: HardhatUserConfig = {
   },
 };
 
-verifyTask;
 forkTasks;
 
 export default config;

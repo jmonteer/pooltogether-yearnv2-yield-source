@@ -5,7 +5,7 @@ import { writeFileSync } from 'fs';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction, DeploymentSubmission, DeployResult } from 'hardhat-deploy/types';
 
-import { DAI_VAULT_ADDRESS_MAINNET } from '../Constant';
+import { DAI_ADDRESS_MAINNET, DAI_VAULT_ADDRESS_MAINNET } from '../Constant';
 import {
   action,
   alert,
@@ -107,6 +107,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     yearnV2YieldSourceInterface.getFunction('initialize'),
     [
       DAI_VAULT_ADDRESS_MAINNET,
+      DAI_ADDRESS_MAINNET,
       18,
       'yvysDAI',
       'PoolTogether Yearn V2 Vault DAI Yield Source',

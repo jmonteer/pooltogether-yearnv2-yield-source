@@ -38,9 +38,10 @@ describe('yearnV2YieldSource', () => {
   const yearnV2YieldSourceTokenSymbol = 'yvysDAI';
   const yearnV2YieldSourceTokenName = 'PoolTogether Yearn V2 Vault DAI Yield Source';
 
-  const initializeYearnV2YieldSource = async (vaultAddress: string, decimals: number) => {
+  const initializeYearnV2YieldSource = async (vaultAddress: string, tokenAddress: string, decimals: number) => {
     return await yearnV2YieldSource.initialize(
       vaultAddress,
+      tokenAddress,
       decimals,
       yearnV2YieldSourceTokenSymbol,
       yearnV2YieldSourceTokenName,
@@ -80,7 +81,7 @@ describe('yearnV2YieldSource', () => {
     ) as YearnV2YieldSourceHarness;
 
     if (!isInitializeTest) {
-      await initializeYearnV2YieldSource(vault.address, 18);
+      await initializeYearnV2YieldSource(vault.address, underlyingToken.address, 18);
       await yearnV2YieldSource.transferOwnership(yieldSourceOwner.address);
     }
   });
@@ -101,7 +102,7 @@ describe('yearnV2YieldSource', () => {
       it(`should let use a ${v} vault`, async () => {
         await vault.mock.apiVersion.returns(v);
 
-        await expect(initializeYearnV2YieldSource(vault.address, yearnV2YieldSourceTokenDecimals))
+        await expect(initializeYearnV2YieldSource(vault.address, underlyingToken.address, yearnV2YieldSourceTokenDecimals))
           .to.emit(yearnV2YieldSource, 'YearnV2YieldSourceInitialized')
           .withArgs(
             vault.address,
@@ -117,7 +118,7 @@ describe('yearnV2YieldSource', () => {
         await vault.mock.apiVersion.returns(v);
 
         await expect(
-          initializeYearnV2YieldSource(vault.address, yearnV2YieldSourceTokenDecimals),
+          initializeYearnV2YieldSource(vault.address, underlyingToken.address, yearnV2YieldSourceTokenDecimals),
         ).to.be.revertedWith('YearnV2YieldSource/vault-not-compatible');
       });
     }
@@ -126,9 +127,20 @@ describe('yearnV2YieldSource', () => {
       await expect(
         initializeYearnV2YieldSource(
           ethers.constants.AddressZero,
+          underlyingToken.address,
           yearnV2YieldSourceTokenDecimals
         ),
       ).to.be.revertedWith('YearnV2YieldSource/vault-not-zero-address');
+    });
+
+    it('should fail if token is address zero', async () => {
+      await expect(
+        initializeYearnV2YieldSource(
+          vault.address,
+          ethers.constants.AddressZero,
+          yearnV2YieldSourceTokenDecimals
+        ),
+      ).to.be.revertedWith('YearnV2YieldSource/token-not-zero-address');
     });
 
     it('should fail if token decimal is not greater than 0', async () => {
@@ -137,6 +149,7 @@ describe('yearnV2YieldSource', () => {
       await expect(
         initializeYearnV2YieldSource(
           vault.address,
+          underlyingToken.address,
           0
         ),
       ).to.be.revertedWith('YearnV2YieldSource/decimals-not-greater-than-zero');

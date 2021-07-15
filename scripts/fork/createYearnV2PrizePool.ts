@@ -4,11 +4,11 @@ import ControlledToken from '@pooltogether/pooltogether-contracts/abis/Controlle
 import MultipleWinners from '@pooltogether/pooltogether-contracts/abis/MultipleWinners.json';
 import YieldSourcePrizePool from '@pooltogether/pooltogether-contracts/abis/YieldSourcePrizePool.json';
 
-import { dai, usdc } from '@studydefi/money-legos/erc20';
+import { dai } from '@studydefi/money-legos/erc20';
 
 import { task } from 'hardhat/config';
 
-import { USDC_VAULT_ADDRESS_MAINNET } from '../../Constant';
+import { DAI_ADDRESS_MAINNET, DAI_VAULT_ADDRESS_MAINNET } from '../../Constant';
 
 import { action, info, success } from '../../helpers';
 
@@ -47,11 +47,11 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
     const yearnV2YieldSourceConstructorArgs = yearnV2YieldSourceInterface.encodeFunctionData(
       yearnV2YieldSourceInterface.getFunction('initialize'),
       [
-        USDC_VAULT_ADDRESS_MAINNET,
+        DAI_VAULT_ADDRESS_MAINNET,
+        DAI_ADDRESS_MAINNET,
         18,
         'yvysDAI',
         'PoolTogether Yearn V2 Vault DAI Yield Source',
-        contractsOwner._address,
       ],
     );
 
@@ -111,7 +111,7 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
       yieldSourceMultipleWinnersTx.hash,
     );
 
-    const yieldSourcePrizePoolInitializedEvent = yieldSourceMultipleWinnersReceipt.logs.map(
+    const yieldSourcePrizePoolInitializedEvents = yieldSourceMultipleWinnersReceipt.logs.map(
       (log) => {
         try {
           return poolBuilder.interface.parseLog(log);
@@ -121,11 +121,13 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
       },
     );
 
+    const yieldSourcePrizePoolInitializedEvent = yieldSourcePrizePoolInitializedEvents.find(
+      (event: any) => event && event.name === 'YieldSourcePrizePoolWithMultipleWinnersCreated',
+    );
+
     const prizePool = await getContractAt(
       YieldSourcePrizePool,
-      yieldSourcePrizePoolInitializedEvent[yieldSourcePrizePoolInitializedEvent.length - 1]?.args[
-        'prizePool'
-      ],
+      yieldSourcePrizePoolInitializedEvent?.args.prizePool,
       contractsOwner,
     );
 
@@ -136,30 +138,31 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
       await prizePool.prizeStrategy(),
       contractsOwner,
     );
-    await prizeStrategy.addExternalErc20Award(dai.address);
 
-    const usdcAmount = ethers.utils.parseUnits('1000', 6);
-    const usdcContract = await getContractAt(usdc.abi, usdc.address, contractsOwner);
-    await usdcContract.approve(prizePool.address, usdcAmount);
+    const daiContract = await getContractAt(dai.abi, dai.address, contractsOwner);
+    const daiDecimals = await daiContract.decimals();
+    const daiAmount = ethers.utils.parseUnits('1000', daiDecimals);
 
-    info(`Depositing ${ethers.utils.formatUnits(usdcAmount, 6)} USDC...`);
+    await daiContract.approve(prizePool.address, daiAmount);
+
+    info(`Depositing ${ethers.utils.formatUnits(daiAmount, daiDecimals)} DAI...`);
 
     await prizePool.depositTo(
       contractsOwner._address,
-      usdcAmount,
+      daiAmount,
       await prizeStrategy.ticket(),
       AddressZero,
     );
 
-    success('Deposited USDC!');
+    success('Deposited DAI!');
 
     info(`Prize strategy owner: ${await prizeStrategy.owner()}`);
     await increaseTime(30);
 
     // simulating returns in the vault during the prizePeriod
-    const usdcProfits = ethers.utils.parseUnits('10000', 6);
-    info(`yVault generated ${ethers.utils.formatUnits(usdcProfits, 6)} USDC`);
-    await usdcContract.transfer(USDC_VAULT_ADDRESS_MAINNET, usdcProfits);
+    const daiProfits = ethers.utils.parseUnits('10000', daiDecimals);
+    info(`yVault generated ${ethers.utils.formatUnits(daiProfits, daiDecimals)} DAI`);
+    await daiContract.transfer(DAI_VAULT_ADDRESS_MAINNET, daiProfits);
 
     await increaseTime(30);
 
@@ -181,12 +184,12 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
 
     const awarded = awardLogs.find((event) => event && event.name === 'Awarded');
 
-    success(`Awarded ${ethers.utils.formatUnits(awarded?.args?.amount, 6)} USDC!`);
+    success(`Awarded ${ethers.utils.formatUnits(awarded?.args?.amount, daiDecimals)} DAI!`);
 
     info('Withdrawing...');
     const ticketAddress = await prizeStrategy.ticket();
     const ticket = await getContractAt(ControlledToken, ticketAddress, contractsOwner);
-    const withdrawalAmount = ethers.utils.parseUnits('100', 6);
+    const withdrawalAmount = ethers.utils.parseUnits('100', daiDecimals);
     const earlyExitFee = await prizePool.callStatic.calculateEarlyExitFee(
       contractsOwner._address,
       ticket.address,
@@ -210,11 +213,11 @@ export default task('fork:create-yearnV2-prize-pool', 'Create YearnV2 Prize Pool
     });
 
     const withdrawn = withdrawLogs.find((event) => event && event.name === 'InstantWithdrawal');
-    success(`Withdrawn ${ethers.utils.formatUnits(withdrawn?.args?.redeemed, 6)} USDC!`);
-    success(`Exit fee was ${ethers.utils.formatUnits(withdrawn?.args?.exitFee, 6)} USDC`);
+    success(`Withdrawn ${ethers.utils.formatUnits(withdrawn?.args?.redeemed, daiDecimals)} DAI!`);
+    success(`Exit fee was ${ethers.utils.formatUnits(withdrawn?.args?.exitFee, daiDecimals)} DAI`);
 
     await prizePool.captureAwardBalance();
     const awardBalance = await prizePool.callStatic.awardBalance();
-    success(`Current awardable balance is ${ethers.utils.formatUnits(awardBalance, 6)} USDC`);
+    success(`Current awardable balance is ${ethers.utils.formatUnits(awardBalance, daiDecimals)} DAI`);
   },
 );

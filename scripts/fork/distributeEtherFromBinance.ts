@@ -1,4 +1,4 @@
-import { usdc } from '@studydefi/money-legos/erc20';
+import { dai } from '@studydefi/money-legos/erc20';
 import { task } from 'hardhat/config';
 
 import { BINANCE7_ADDRESS, DAI_RICH_ADDRESS } from '../../Constant';
@@ -18,7 +18,7 @@ export default task(
   const binance = provider.getUncheckedSigner(BINANCE7_ADDRESS);
   const daiRichSigner = provider.getUncheckedSigner(DAI_RICH_ADDRESS);
 
-  const usdcContract = await getContractAt(usdc.abi, usdc.address, daiRichSigner);
+  const daiContract = await getContractAt(dai.abi, dai.address, daiRichSigner);
 
   const recipients: { [key: string]: string } = {
     ['Deployer']: deployer,
@@ -32,8 +32,8 @@ export default task(
     const name = keys[i];
     const address = recipients[name];
 
-    info(`Sending 20,000 USDC to ${name}...`);
-    await usdcContract.transfer(address, ethers.utils.parseUnits('20000', 6));
+    info(`Sending 20,000 DAI to ${name}...`);
+    await daiContract.transfer(address, ethers.utils.parseUnits('20000', 18));
 
     info(`Sending 1000 Ether to ${name}...`);
     await binance.sendTransaction({ to: address, value: ethers.utils.parseEther('1000') });
