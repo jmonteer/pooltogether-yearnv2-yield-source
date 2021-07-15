@@ -40,6 +40,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
     /// @notice Emitted when the yield source is initialized
     event YearnV2YieldSourceInitialized(
         IYVaultV2 vault,
+        IERC20Upgradeable token,
         uint8 decimals,
         string symbol,
         string name
@@ -100,6 +101,13 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
         vault = _vault;
 
         require(address(_token) != address(0), "YearnV2YieldSource/token-not-zero-address");
+
+        address _vaultToken = _vault.token();
+
+        if (_vaultToken != address(0)) {
+            require(_vaultToken == address(_token), "YearnV2YieldSource/token-address-different");
+        }
+
         token = _token;
 
         __Ownable_init();
@@ -113,6 +121,7 @@ contract YearnV2YieldSource is IYieldSource, ERC20Upgradeable, OwnableUpgradeabl
 
         emit YearnV2YieldSourceInitialized(
             _vault,
+            _token,
             _decimals,
             _symbol,
             _name

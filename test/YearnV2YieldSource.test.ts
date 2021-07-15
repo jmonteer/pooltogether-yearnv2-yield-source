@@ -106,6 +106,7 @@ describe('yearnV2YieldSource', () => {
           .to.emit(yearnV2YieldSource, 'YearnV2YieldSourceInitialized')
           .withArgs(
             vault.address,
+            underlyingToken.address,
             yearnV2YieldSourceTokenDecimals,
             yearnV2YieldSourceTokenSymbol,
             yearnV2YieldSourceTokenName,
@@ -141,6 +142,18 @@ describe('yearnV2YieldSource', () => {
           yearnV2YieldSourceTokenDecimals
         ),
       ).to.be.revertedWith('YearnV2YieldSource/token-not-zero-address');
+    });
+
+    it('should fail if token address is different from vault token address', async () => {
+      const randomWallet = ethers.Wallet.createRandom();
+
+      await expect(
+        initializeYearnV2YieldSource(
+          vault.address,
+          randomWallet.address,
+          yearnV2YieldSourceTokenDecimals
+        ),
+      ).to.be.revertedWith('YearnV2YieldSource/token-address-different');
     });
 
     it('should fail if token decimal is not greater than 0', async () => {
